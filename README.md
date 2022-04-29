@@ -12,7 +12,7 @@ Because I couldn't find a library that fits my needs, I wrote my own. It only ha
 
 ### Creating a bitmap
 
-bitmap test;    //creates a new bitmap 
+bitmap test;    //creates a new bitmap "test"
 
 
 ### Initializing a bitmap
