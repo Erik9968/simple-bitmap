@@ -12,12 +12,12 @@ Because I couldn't find a library that fits my needs, I wrote my own. It only ha
 
 ### Creating a bitmap
 
-bitmap test;    //creates a new bitmap "test"
+bitmap test;          //creates a new bitmap "test"
 
 
 ### Initializing a bitmap
 
-test.create(<width>, <height>);   //Sets width and height of the bitmap
+test.create(<width>, <height>);          //Sets width and height of the bitmap
 
 
 ### Resizing a bitmap
