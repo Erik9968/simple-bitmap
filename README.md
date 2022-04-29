@@ -12,45 +12,55 @@ Because I couldn't find a library that fits my needs, I wrote my own. It only ha
 
 ### Creating a bitmap
 
-bitmap test;          //creates a new bitmap "test"
+//creates a new bitmap "test"
+bitmap test;
 
 
 ### Initializing a bitmap
 
-test.create(<width>, <height>);          //Sets width and height of the bitmap
+//Sets width and height of the bitmap
+test.create(<width>, <height>);
 
 
 ### Resizing a bitmap
 
-test.resize(<width>, <height>);   //Sets width and height of the bitmap
+//Sets width and height of the bitmap
+test.resize(<width>, <height>);
   
 ### Clearing a bitmap
   
-test.clear();   //clears the image (makes it black) but keeps the dimensions
+//clears the image (makes it black) but keeps the dimensions
+test.clear();
   
 ### Resetting a bitmap
-  
-test.reset();   //This will free all bitmap data and reset the dimensions
+
+//This will free all bitmap data and reset the dimensions
+test.reset();
   
 ### Saving a bitmap
   
-test.save((char*)"abcd.bmp");   //<string> not included
-test.save("abcd.bmp");          //<string> included
+//<string> not included  
+test.save((char*)"abcd.bmp");
+//<string> included  
+test.save("abcd.bmp");          
   
 
 ## editing:
 
 ### changing pixels
   
-test.set_pixel(<x_pos>, <y_pos>, <red>, <green>, <blue>, <alpha>);    //sets the pixel at (x_pos|y_pos) to color value
+//sets the pixel at (x_pos|y_pos) to color value  
+test.set_pixel(<x_pos>, <y_pos>, <red>, <green>, <blue>, <alpha>);    
   
 ### filling the image
   
-test.fill(<red>, <green>, <blue>, <alpha>);     //fills the entire image with color value
+//fills the entire image with color value  
+test.fill(<red>, <green>, <blue>, <alpha>);     
   
 ### drawing rectangles
   
-test.rect(<x1>, <y1>, <x2>, <y2>, <red>, <green>, <blue>, <alpha>);     //fills area (x1|y1) to (x2|y2) with color value
+//fills area (x1|y1) to (x2|y2) with color value  
+test.rect(<x1>, <y1>, <x2>, <y2>, <red>, <green>, <blue>, <alpha>);     
   
 ### drawing circles
   
