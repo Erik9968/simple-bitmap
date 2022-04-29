@@ -8,7 +8,7 @@ Because I couldn't find a library that fits my needs, I wrote my own. It only ha
 
 # Usage:
 
-## creating / resizing / resetting / clearing / saving
+## creating / resizing / resetting / clearing / saving:
 
 ### Creating a bitmap
 
@@ -38,7 +38,7 @@ test.save((char*)"abcd.bmp");   //<string> not included
 test.save("abcd.bmp");          //<string> included
   
 
-## editing
+## editing:
 
 ### changing pixels
   
