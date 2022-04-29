@@ -8,29 +8,31 @@ Because I couldn't find a library that fits my needs, I wrote my own. It only ha
 
 # Usage:
 
-## creating / resizing / resetting / saving
+## creating / resizing / resetting / clearing / saving
 
-A bitmap can be created with "bitmap" followed by a name:
+### Creating a bitmap
 
-bitmap test;
-
-
-To give the bitmap a size, the "create" command must be used:
-
-test.create(<width>, <height>);
+bitmap test;    //creates a new bitmap 
 
 
-To resize a bitmap, the "resize" function must be used:
+### Initializing a bitmap
 
-test.resize(<width>, <height>);
+test.create(<width>, <height>);   //Sets width and height of the bitmap
+
+
+### Resizing a bitmap
+
+test.resize(<width>, <height>);   //Sets width and height of the bitmap
   
+### Clearing a bitmap
   
-To reset a bitmap, the "reset" function must be used:
+test.clear();   //clears the image (makes it black) but keeps the dimensions
+  
+### Resetting a bitmap
   
 test.reset();   //This will free all bitmap data and reset the dimensions
   
-  
-To save a bitmap, the "save" function must be used:
+### Saving a bitmap
   
 test.save((char*)"abcd.bmp");   //<string> not included
 test.save("abcd.bmp");          //<string> included
