@@ -53,3 +53,6 @@ test.rect(<x1>, <y1>, <x2>, <y2>, <red>, <green>, <blue>, <alpha>);     //fills 
 ### drawing circles
   
 test.circle(<x_pos>, <y_pos>, <radius>, <red>, <green>, <blue>, <alpha>);
+
+  
+###I don't have time to continue writing right now. The rest will come eventually...
