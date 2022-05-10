@@ -16,7 +16,7 @@ bitmap test;
 ### Initializing a bitmap
 
 //Sets width and height of the bitmap
-test.create(<width>, <height>);
+test.create(<width​>, <height​>);
 
 
 ### Resizing a bitmap
@@ -36,9 +36,9 @@ test.reset();
   
 ### Saving a bitmap
   
-//<string> not included  
+//<string​> not included  
 test.save((char*)"abcd.bmp");
-//<string> included  
+//<string​> included  
 test.save("abcd.bmp");          
   
 
@@ -47,21 +47,21 @@ test.save("abcd.bmp");
 ### changing pixels
   
 //sets the pixel at (x_pos | y_pos) to color value  
-test.set_pixel(<x_pos>, <y_pos>, <red>, <green>, <blue>, <alpha>);    
+test.set_pixel(<x_pos>, <y_pos>, <red​>, <green​>, <blue​>, <alpha​>);    
   
 ### filling the image
   
 //fills the entire image with color value  
-test.fill(<red>, <green>, <blue>, <alpha>);     
+test.fill(<red​>, <green​>, <blue​>, <alpha​>);     
   
 ### drawing rectangles
   
 //fills area (x1|y1) to (x2|y2) with color value  
-test.rect(<x1>, <y1>, <x2>, <y2>, <red>, <green>, <blue>, <alpha>);     
+test.rect(<x1​>, <y1​>, <x2​>, <y2​>, <red​>, <green​>, <blue​>, <alpha​>);     
   
 ### drawing circles
   
-test.circle(<x_pos>, <y_pos>, <radius>, <red>, <green>, <blue>, <alpha>);
+test.circle(<x_pos>, <y_pos>, <radius​>, <red​>, <green​>, <blue​>, <alpha​>);
 
   
 ### I don't have time to continue writing right now. The rest will come eventually...
