@@ -22,7 +22,7 @@ test.create(<width>, <height>);
 ### Resizing a bitmap
 
 //Sets width and height of the bitmap
-test.resize(<width␀> , <height␀>);
+test.resize(<width​> , <height​>);
   
 ### Clearing a bitmap
   
