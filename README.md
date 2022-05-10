@@ -1,5 +1,5 @@
 # simple-bitmap
-Adds very simple functions for bitmap creation, manipulation and saving
+Very simple functions for bitmap creation, manipulation and saving
 
 This is my first (public) GitHub repo.
 
