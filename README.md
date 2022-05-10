@@ -16,13 +16,13 @@ bitmap test;
 ### Initializing a bitmap
 
 //Sets width and height of the bitmap
-test.create( <width> , <height> );
+test.create(<width>, <height>);
 
 
 ### Resizing a bitmap
 
 //Sets width and height of the bitmap
-test.resize( <width> , <height> );
+test.resize(<width␀> , <height␀>);
   
 ### Clearing a bitmap
   
@@ -46,7 +46,7 @@ test.save("abcd.bmp");
 
 ### changing pixels
   
-//sets the pixel at (x_pos|y_pos) to color value  
+//sets the pixel at (x_pos | y_pos) to color value  
 test.set_pixel(<x_pos>, <y_pos>, <red>, <green>, <blue>, <alpha>);    
   
 ### filling the image
