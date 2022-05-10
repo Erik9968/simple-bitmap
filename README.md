@@ -3,9 +3,6 @@ Very simple functions for bitmap creation, manipulation and saving
 
 This is my first (public) GitHub repo.
 
-The goal of this project was to create a very simple to use and fast library. I started this project because I needed a simple library to render and save some images. There a basically 2 options when it comes to such image librarys. First are very complicated libarys that require initialisations and have 1000s of functions that you have to study to get anything done with them. The second option are small very very outdated and mostly limited librarys.
-Because I couldn't find a library that fits my needs, I wrote my own. It only has 21 functions and does not have a real size limit. Images can be up to 32768x32768 pixels in size!
-
 # Usage:
 
 ## creating / resizing / resetting / clearing / saving:
