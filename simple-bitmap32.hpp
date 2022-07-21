@@ -1,26 +1,20 @@
-/* very simple bitmap library version exp 0.30
- * by E.Schmitter
+/* very simple bitmap library version exp 0.32
+ * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
- * The original library used vectors to store the bitmap data.
- * Not only was this quite slow, it also had a few errors that I could not fix.
- * This new library uses malloc to allocate memory for the bitmap data.
- * This is much much faster than the original library, and also has no errors.
+ * The original library used vectors to store the bitmap data. (It was too slow)
  * 
  * A few functions are not working properly:
- * The breseham line drawing algorithm is not working properly.
- * The triangle drawing function is using the breseham line drawing algorithm, and in turn, is not working properly.
- * The invert function is such a big failure that I commented it out. (I may never fix it)
+ * breseham line drawing algorithm
+ * triangle drawing function (uses bresenham line drawing algorithm)
  * 
  * This library, belive it or not, can not load a bitmap file (yet).
  * Yes that's right, it can NOT load a bitmap file.
- * I am working on that though.
- * It's not that easy because I have to write a routine to read the bitmap file header.
- * These headers can have many different sizes and can also include extra data.
  * 
  * I used the following resources to help me with this library:
  * https://en.wikipedia.org/wiki/BMP_file_format
  * https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
+ * 
  * 
  * Changelog:
  * 
@@ -51,6 +45,7 @@
  * 
  * 
  * TODO:
+ * - fix circle function (does not work when part of the circle is outside of the image)
  * - fix triangle drawing function
  * - fix breseham line drawing algorithm
  * - add load function
@@ -62,7 +57,7 @@
 #pragma once
 
 #include <fstream>
-#include <stdint.h>
+//#include <stdint.h>
 
 namespace sbtmp{
 
@@ -311,7 +306,6 @@ namespace sbtmp{
                 return false;
             }
 
-            //pixel_data.resize(width_set,std::vector<std::vector<uint8_t> >(height_set,std::vector<uint8_t>(4)));
 
             width = width_set;
             height = height_set;
@@ -340,9 +334,6 @@ namespace sbtmp{
             total_size_in_bytes = 0;
             raw_data_size = 0;
 
-            //free(pixel_data);
-            //pixel_data = NULL;
-            // I don't know if this is better than what I have commented out above, but it works.
             pixel_data = (uint8_t*)realloc (pixel_data, 0);
 
             initialized = false;
