@@ -64,13 +64,13 @@ namespace sbtmp{
     class bitmap{
         public:
 
-        bool create(uint32_t width_set, uint32_t height_set){
+        bool create(uint32_t set_width, uint32_t set_height){
             if(initialized){
                 return false;
             }
 
-            width = width_set;
-            height = height_set;
+            width = set_width;
+            height = set_height;
 
             total_size_in_bytes = pixel_data_offset + height * width * 4;
             raw_data_size = height * width * 4;
@@ -179,6 +179,14 @@ namespace sbtmp{
         }
         #endif
 
+        void fill(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            for(uint32_t i = 0; i < height; i++){
+                for(uint32_t j = 0; j < width; j++){
+                    set_pixel(j, i, red, green, blue, alpha);
+                }
+            }
+        }
+
         void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             if(x1 > x2 || y1 > y2 || x1 > width - 1 || y1 > height - 1 || x2 > width - 1 || y2 > height - 1)
                 return;
@@ -210,18 +218,10 @@ namespace sbtmp{
         }
         #endif
 
-        void fill(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+        void convert_bw(uint32_t x_pos, uint32_t y_pos, uint32_t width, uint32_t height){
+            char bw_color;
             for(uint32_t i = 0; i < height; i++){
                 for(uint32_t j = 0; j < width; j++){
-                    set_pixel(j, i, red, green, blue, alpha);
-                }
-            }
-        }
-
-        void convert_bw(uint32_t x_pos, uint32_t y_pos, uint32_t width_set, uint32_t height_set){
-            char bw_color;
-            for(uint32_t i = 0; i < height_set; i++){
-                for(uint32_t j = 0; j < width_set; j++){
                     bw_color = (pixel_data[get_index(x_pos + j, y_pos + i)+0] + pixel_data[get_index(x_pos + j, y_pos + i)+1] + pixel_data[get_index(x_pos + j, y_pos + i)+2]) / 3;
                     pixel_data[get_index(x_pos + j, y_pos + i)+0] = bw_color;
                     pixel_data[get_index(x_pos + j, y_pos + i)+1] = bw_color;
@@ -230,9 +230,9 @@ namespace sbtmp{
             }
         }
 
-        void rgb_invert(uint32_t x_pos, uint32_t y_pos, uint32_t width_set, uint32_t height_set){
-            for(uint32_t i = 0; i < height_set; i++){
-                for(uint32_t j = 0; j < width_set; j++){
+        void rgb_invert(uint32_t x_pos, uint32_t y_pos, uint32_t width, uint32_t height){
+            for(uint32_t i = 0; i < height; i++){
+                for(uint32_t j = 0; j < width; j++){
                     pixel_data[get_index(x_pos + j, y_pos + i)+0] = 255 - pixel_data[get_index(x_pos + j, y_pos + i)+0];
                     pixel_data[get_index(x_pos + j, y_pos + i)+1] = 255 - pixel_data[get_index(x_pos + j, y_pos + i)+1];
                     pixel_data[get_index(x_pos + j, y_pos + i)+2] = 255 - pixel_data[get_index(x_pos + j, y_pos + i)+2];
@@ -256,7 +256,7 @@ namespace sbtmp{
             }
         }
 
-
+        #ifdef sbtmp_experimental
         void merge(bitmap& other){
             if(other.get_width() != width || other.get_height() != height){
                 return;
@@ -270,6 +270,7 @@ namespace sbtmp{
                 }
             }
         }
+        #endif
 
         void addtpixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             if(x_pos > width - 1 || y_pos > height - 1)
@@ -290,25 +291,27 @@ namespace sbtmp{
         }
 
         uint8_t get_pixel(uint32_t x_pos, uint32_t y_pos, uint8_t color_index){
+            if(color_index > 3)
+                return 0;
             return pixel_data[get_index(x_pos, y_pos) + color_index];
         }
 
-        bool resize(uint32_t width_set, uint32_t height_set){
+        bool resize(uint32_t set_width, uint32_t set_height){
             if(!initialized){
                 return false;
             }
 
-            if(width_set == width && height_set == height){
+            if(set_width == width && set_height == height){
                 return true;
             }
 
-            if(width_set < width || height_set < height){
+            if(set_width < width || set_height < height){
                 return false;
             }
 
 
-            width = width_set;
-            height = height_set;
+            width = set_width;
+            height = set_height;
 
             total_size_in_bytes = pixel_data_offset + height * width * 4;
             raw_data_size = height * width * 4;
