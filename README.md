@@ -9,24 +9,24 @@ This is my first (public) GitHub repo.
 
 ### Creating a bitmap
 
-//creates a new bitmap "test"
+//create a new bitmap "test"
 bitmap test;
 
 
 ### Initializing a bitmap
 
-//Sets width and height of the bitmap
+//Set width and height of the bitmap
 test.create(<width​>, <height​>);
 
 
 ### Resizing a bitmap
 
-//Sets width and height of the bitmap
+//Set width and height of the bitmap
 test.resize(<width​> , <height​>);
   
 ### Clearing a bitmap
   
-//clears the image (makes it black) but keeps the dimensions
+//clear the image (makes it black) but keeps the dimensions
 test.clear();
   
 ### Resetting a bitmap
@@ -46,22 +46,29 @@ test.save("abcd.bmp");
 
 ### changing pixels
   
-//sets the pixel at (x_pos | y_pos) to color value  
+//set the pixel at (x_pos | y_pos)  
 test.set_pixel(<x_pos>, <y_pos>, <red​>, <green​>, <blue​>, <alpha​>);    
   
 ### filling the image
   
-//fills the entire image with color value  
+//fill the entire image  
 test.fill(<red​>, <green​>, <blue​>, <alpha​>);     
   
 ### drawing rectangles
   
-//fills area (x1|y1) to (x2|y2) with color value  
+//fill area (x1|y1) to (x2|y2)  
 test.rect(<x1​>, <y1​>, <x2​>, <y2​>, <red​>, <green​>, <blue​>, <alpha​>);     
   
 ### drawing circles
-  
+ 
+//draw circle at (x_pos | y_pos)
 test.circle(<x_pos>, <y_pos>, <radius​>, <red​>, <green​>, <blue​>, <alpha​>);
 
-  
-### I don't have time to continue writing right now. The rest will come eventually...
+### lines, triangles, rectangle borders are not implemented yet
+
+## filters:
+
+### convert to black and white
+
+//convert a section of the image to black and white
+test.
