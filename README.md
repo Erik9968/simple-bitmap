@@ -82,7 +82,7 @@ test.rgb_invert(x_pos, y_pos, width, height);
 test.flip_horizontal();
 
 //flip image vertically  
-test.flip_vertically();
+test.flip_vertical();
 
 ## extra functions:
 
