@@ -36,7 +36,7 @@ test.reset();
 ### Saving a bitmap
 
 //string​ not included  
-test.save((char*)"abcd.bmp");  
+test.save((char*)"abcd.bmp\0");  
 //string​ included  
 test.save("abcd.bmp");  
 
