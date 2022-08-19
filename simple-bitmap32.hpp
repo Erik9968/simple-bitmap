@@ -378,18 +378,6 @@ namespace sbtmp{
             out_image.write((char *)&color_palette, 4);
             out_image.write((char *)&imp_colors, 4);
 
-            //old loop for writing pixel data(crazy slow)
-            //write raw pixel data
-            /*for(int64_t i = height - 1; i >= 0; i--){ // x coords
-                for(int64_t j = 0; j < width; j++){ // y coords
-                    out_image.write((char *)&pixel_data[get_index(j, i) + 0], 1);
-                    out_image.write((char *)&pixel_data[get_index(j, i) + 1], 1);
-                    out_image.write((char *)&pixel_data[get_index(j, i) + 2], 1);
-                    out_image.write((char *)&pixel_data[get_index(j, i) + 3], 1);
-                }
-                //out_image.write((char *)&padding, padding_size); // byte padding depending on resulution
-            }*/
-
             //much better way to write pixel data
             out_image.write((char *)&*pixel_data, raw_data_size);
 
