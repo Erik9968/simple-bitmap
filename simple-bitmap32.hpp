@@ -42,6 +42,7 @@
  * 
  * 0.32:
  * - Invert function fixed (renamed to rgb_invert)
+ * - convert_bw function added
  * 
  * 0.33:
  * - Functions flip_vertical and flip_horizontal are swapped
