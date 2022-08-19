@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.32
+/* very simple bitmap library version exp 0.34
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
@@ -48,6 +48,9 @@
  * - Functions flip_vertical and flip_horizontal are swapped
  * - Fixed flip_vertical and flip_horizontal
  * 
+ * 0.34:
+ * - Fixed header bug that coused transparent parts to be not transparent
+ * 
  * 
  * TODO:
  * - fix circle function (does not work when part of the circle is outside of the image)
@@ -65,6 +68,28 @@ namespace sbtmp{
     class bitmap{
         public:
 
+        //constructor
+        bitmap(uint32_t set_width, uint32_t set_height) {
+            if (initialized) {
+                return;
+            }
+
+            width = set_width;
+            height = set_height;
+
+            total_size_in_bytes = pixel_data_offset + height * width * 4;
+            raw_data_size = height * width * 4;
+
+            //pixel_data = (uint8_t*)realloc (pixel_data, raw_data_size);
+            pixel_data = (uint8_t*)calloc(raw_data_size, sizeof(uint8_t));
+
+            initialized = true;
+        }
+
+        //allows not using the constructor
+        bitmap() = default;
+
+        //create function (recommended way to init images)
         bool create(uint32_t set_width, uint32_t set_height){
             if(initialized){
                 return false;
@@ -84,22 +109,27 @@ namespace sbtmp{
             return true;
         }
 
+        //return width of the image
         uint32_t get_width(){
             return width;
         }
 
+        //returns height of the image
         uint32_t get_height(){
             return height;
         }
 
+        //returns the entire file size including header 
         uint32_t get_total_size(){
             return total_size_in_bytes;
         }
 
+        //returns the raw-image-size
         uint32_t get_size(){
             return raw_data_size;
         }
 
+        //set pixel at coords x_pos, y_pos to rgba value
         void set_pixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             if (x_pos > width - 1 || y_pos > height - 1)
                 return;
@@ -180,6 +210,7 @@ namespace sbtmp{
         }
         #endif
 
+        //sets every pixel of the image to rgba value
         void fill(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             for(uint32_t i = 0; i < height; i++){
                 for(uint32_t j = 0; j < width; j++){
@@ -188,6 +219,7 @@ namespace sbtmp{
             }
         }
 
+        //draws a rectangle of given size
         void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             if(x1 > x2 || y1 > y2 || x1 > width - 1 || y1 > height - 1 || x2 > width - 1 || y2 > height - 1)
                 return;
@@ -198,12 +230,12 @@ namespace sbtmp{
             }
         }
 
-
-        void circle(uint32_t x_pos, uint32_t y_pos, uint32_t radius, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x_pos > width - 1 || y_pos > height - 1 || x_pos + radius > width - 1 || y_pos + radius > height - 1 || x_pos - radius < 0 || y_pos - radius < 0)
+        //draws a circle of given size
+        void circle(uint32_t x_pos, uint32_t y_pos, int32_t radius, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(x_pos > width - 1 || y_pos > height - 1 || x_pos + radius > width - 1 || y_pos + radius > height - 1 || x_pos - radius < 0 || y_pos - radius < 0 || radius < 1)
                 return;
-            for(int32_t i = -radius; i < (int32_t)radius; i++){
-                for(int32_t j = -radius; j < (int32_t)radius; j++){
+            for(int32_t i = -radius; i < radius; i++){
+                for(int32_t j = -radius; j < radius; j++){
                     if(i * i + j * j <= radius * radius){
                         set_pixel(x_pos + i, y_pos + j, red, green, blue, alpha);
                     }
@@ -219,6 +251,7 @@ namespace sbtmp{
         }
         #endif
 
+        //converts the image to black and white in the specified area
         void convert_bw(uint32_t x_pos, uint32_t y_pos, uint32_t width, uint32_t height){
             char bw_color;
             for(uint32_t i = 0; i < height; i++){
@@ -231,6 +264,7 @@ namespace sbtmp{
             }
         }
 
+        //inverts the rgb values of the image in the specified area
         void rgb_invert(uint32_t x_pos, uint32_t y_pos, uint32_t width, uint32_t height){
             for(uint32_t i = 0; i < height; i++){
                 for(uint32_t j = 0; j < width; j++){
@@ -241,6 +275,7 @@ namespace sbtmp{
             }
         }
 
+        //flips the image vertically
         void flip_vertical(){
             for(uint32_t i = 0; i < height; i++){
                 for(uint32_t j = 0; j < width / 2; j++){
@@ -253,6 +288,7 @@ namespace sbtmp{
             }
         }
 
+        //flips the image horizontally
         void flip_horizontal(){
             for(uint32_t i = 0; i < height / 2; i++){
                 for(uint32_t j = 0; j < width; j++){
@@ -281,6 +317,7 @@ namespace sbtmp{
         }
         #endif
 
+        //adds rgba value to specified pixel
         void addtpixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             if(x_pos > width - 1 || y_pos > height - 1)
                 return;
@@ -290,6 +327,7 @@ namespace sbtmp{
             pixel_data[get_index(x_pos, y_pos)+3] += alpha;
         }
 
+        //subtracts rgba value from specified pixel
         void subfpixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             if(x_pos > width - 1 || y_pos > height - 1)
                 return;
@@ -299,12 +337,14 @@ namespace sbtmp{
             pixel_data[get_index(x_pos, y_pos)+3] -= alpha;
         }
 
+        //return the r-g-b-a value of specified pixel (3rd param: 0=b, 1=g, 2=r, 3=a)
         uint8_t get_pixel(uint32_t x_pos, uint32_t y_pos, uint8_t color_index){
             if(color_index > 3)
                 return 0;
             return pixel_data[get_index(x_pos, y_pos) + color_index];
         }
 
+        //changes the size of the image
         bool resize(uint32_t set_width, uint32_t set_height){
             if(!initialized){
                 return false;
@@ -330,12 +370,14 @@ namespace sbtmp{
             return true;
         }
 
+        //clears the image
         void clear(){
             for(uint64_t i = 0; i < raw_data_size; i++){
                 pixel_data[i] = 0;
             }
         }
 
+        //frees the memory of the image and resets all properties
         bool reset(){
             if(!initialized){
                 return false;
@@ -353,7 +395,8 @@ namespace sbtmp{
             return true;
         }
 
-        bool save(char filename[]){
+        //saves the image with given filename
+        bool save(const char * filename){
             if(!initialized){
                 return false;
             }
@@ -379,6 +422,14 @@ namespace sbtmp{
             out_image.write((char *)&color_palette, 4);
             out_image.write((char *)&imp_colors, 4);
 
+            out_image.write((char *)&red_channel_bit_mask, 4);
+            out_image.write((char *)&green_channel_bit_mask, 4);
+            out_image.write((char *)&blue_channel_bit_mask, 4);
+            out_image.write((char *)&alpha_channel_bit_mask, 4);
+            out_image.write((char *)&*color_space, 4);
+            out_image.write((char *)&*color_space_endpoints, 36);
+            out_image.write((char *)&*gamma_rgb, 12);
+
             //much better way to write pixel data
             out_image.write((char *)&*pixel_data, raw_data_size);
 
@@ -388,36 +439,51 @@ namespace sbtmp{
         }
 
         //if std::string is included, the save function can be called with a string instead of a char array
-        #if defined(_GLIBCXX_STRING) //gnu gcc compiler (linux)
+        #if defined(_GLIBCXX_STRING_) //gnu gcc compiler (linux)
             bool save(std::string filename){
-                return save((char*)filename.c_str());
+                return save(filename.c_str());
             }
         #elif defined(_STRING_) //msvc / llvm compiler (Windows)
             bool save(std::string filename){
-                return save((char*)filename.c_str());
+                return save(filename.c_str());
             }
         #endif
 
 
         private:
-        char ID_f1 = 'B', ID_f2 = 'M';
+        //BMP header
+        const char ID_f1 = 'B', ID_f2 = 'M';
         uint32_t total_size_in_bytes;
         const uint16_t unused = 0;
-        const uint32_t pixel_data_offset = 54;
-        const uint32_t DIB_header_size = 40;
+        //const uint32_t pixel_data_offset = 54;
+        const uint32_t pixel_data_offset = 122;
+
+        //DIB header
+        //const uint32_t DIB_header_size = 40;
+        const uint32_t DIB_header_size = 108;
         uint32_t width, height;
         const uint16_t color_planes = 1;
         const uint16_t bits_per_pixel = 32;
-        const uint32_t Bl_RGB = 0;
+        const uint32_t Bl_RGB = 3;
         uint32_t raw_data_size;
         const uint32_t DPI_hor = 2835, DPI_ver = 2835;
         const uint32_t color_palette = 0;
         const uint32_t imp_colors = 0;
+
+        const uint32_t red_channel_bit_mask = 0x00ff0000;
+        const uint32_t green_channel_bit_mask = 0x0000ff00;
+        const uint32_t blue_channel_bit_mask = 0x000000ff;
+        const uint32_t alpha_channel_bit_mask = 0xff000000;
+        const char color_space[4] = {' ', 'n', 'i', 'W'};
+        const uint8_t color_space_endpoints[36] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+        const uint32_t gamma_rgb[3] = {0, 0, 0};
+
         const uint8_t padding = 0;
         uint8_t padding_size;
         uint8_t * pixel_data = (uint8_t*)malloc (0);
         bool initialized = false;
 
+        //function used to get the array index of any pixel
         uint64_t get_index(uint32_t x_pos, uint32_t y_pos){
             return ((width - y_pos - 1) * width + x_pos) * 4; //y_pos is inverted because of the way the image is stored
         }
