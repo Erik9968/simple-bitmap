@@ -43,6 +43,10 @@
  * 0.32:
  * - Invert function fixed (renamed to rgb_invert)
  * 
+ * 0.33:
+ * - Functions flip_vertical and flip_horizontal are swapped
+ * - Fixed flip_vertical and flip_horizontal
+ * 
  * 
  * TODO:
  * - fix circle function (does not work when part of the circle is outside of the image)
@@ -54,7 +58,6 @@
 
 
 #include <fstream>
-//#include <stdint.h>
 
 namespace sbtmp{
 
@@ -237,18 +240,26 @@ namespace sbtmp{
             }
         }
 
-        void flip_horizontal(){
+        void flip_vertical(){
             for(uint32_t i = 0; i < height; i++){
                 for(uint32_t j = 0; j < width / 2; j++){
+                    //this is magic
                     std::swap(pixel_data[get_index(i, j)], pixel_data[get_index(i, width - j - 1)]);
+                    std::swap(pixel_data[get_index(i, j)+1], pixel_data[get_index(i, width - j - 1)+1]);
+                    std::swap(pixel_data[get_index(i, j)+2], pixel_data[get_index(i, width - j - 1)+2]);
+                    std::swap(pixel_data[get_index(i, j)+3], pixel_data[get_index(i, width - j - 1)+3]);
                 }
             }
         }
 
-        void flip_vertical(){
+        void flip_horizontal(){
             for(uint32_t i = 0; i < height / 2; i++){
                 for(uint32_t j = 0; j < width; j++){
+                    //this is magic too
                     std::swap(pixel_data[get_index(i, j)], pixel_data[get_index(height - i - 1, j)]);
+                    std::swap(pixel_data[get_index(i, j)+1], pixel_data[get_index(height - i - 1, j)+1]);
+                    std::swap(pixel_data[get_index(i, j)+2], pixel_data[get_index(height - i - 1, j)+2]);
+                    std::swap(pixel_data[get_index(i, j)+3], pixel_data[get_index(height - i - 1, j)+3]);
                 }
             }
         }
