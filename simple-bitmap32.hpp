@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.34
+/* very simple bitmap library version exp 0.35
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
@@ -8,8 +8,11 @@
  * breseham line drawing algorithm
  * triangle drawing function (uses bresenham line drawing algorithm)
  * 
- * This library, belive it or not, can not load a bitmap file (yet).
- * Yes that's right, it can NOT load a bitmap file.
+ * This library can since ver exp 0.35 load 32bit bitmap image files
+ * The function is currently very picky because it expects a very basic bmp and dib header
+ * This means that any extra information like embedded icc color profiles or other stuff will
+ * be ignored or more likely cause the load function to crash
+ * No support for compressed bitmaps
  * 
  * I used the following resources to help me with this library:
  * https://en.wikipedia.org/wiki/BMP_file_format
@@ -51,12 +54,20 @@
  * 0.34:
  * - Fixed header bug that coused transparent parts to be not transparent
  * 
+ * 0.35:
+ * - Added color datatype (no real use yet)
+ * - Added image load function
+ * - Added floodfill function
+ * 
  * 
  * TODO:
  * - fix circle function (does not work when part of the circle is outside of the image)
  * - fix triangle drawing function
  * - fix breseham line drawing algorithm
- * - add load function
+ * - add blur function
+ * - add color datatype wrapper functions
+ * - add function to load bitmap data from arrays
+ * - add more filters and resize functions (nearest neighbour | bilinear | bicubic)
  * - add characater/string drawing function
  */
 
@@ -70,9 +81,8 @@ namespace sbtmp{
 
         //constructor
         bitmap(uint32_t set_width, uint32_t set_height) {
-            if (initialized) {
+            if(initialized)
                 return;
-            }
 
             width = set_width;
             height = set_height;
@@ -90,10 +100,9 @@ namespace sbtmp{
         bitmap() = default;
 
         //create function (recommended way to init images)
-        bool create(uint32_t set_width, uint32_t set_height){
-            if(initialized){
-                return false;
-            }
+        void create(uint32_t set_width, uint32_t set_height){
+            if(initialized)
+                return;
 
             width = set_width;
             height = set_height;
@@ -105,8 +114,6 @@ namespace sbtmp{
             pixel_data = (uint8_t*)calloc (raw_data_size, sizeof(uint8_t));
 
             initialized = true;
-
-            return true;
         }
 
         //return width of the image
@@ -131,7 +138,7 @@ namespace sbtmp{
 
         //set pixel at coords x_pos, y_pos to rgba value
         void set_pixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if (x_pos > width - 1 || y_pos > height - 1)
+            if (x_pos > width - 1 || y_pos > height - 1 || !initialized)
                 return;
             pixel_data[get_index(x_pos, y_pos)+0] = blue;
             pixel_data[get_index(x_pos, y_pos)+1] = green;
@@ -212,6 +219,8 @@ namespace sbtmp{
 
         //sets every pixel of the image to rgba value
         void fill(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(!initialized)
+                return;
             for(uint32_t i = 0; i < height; i++){
                 for(uint32_t j = 0; j < width; j++){
                     set_pixel(j, i, red, green, blue, alpha);
@@ -219,9 +228,22 @@ namespace sbtmp{
             }
         }
 
+        //floodfill like "bucket" in paint
+        void floodfill(uint32_t x_pos, uint32_t y_pos, uint8_t old_red, uint8_t old_green, uint8_t old_blue, uint8_t new_red, uint8_t new_green, uint8_t new_blue){
+            if(x_pos > width - 1 || y_pos > height - 1 || !initialized)
+                return;
+            if(get_pixel(x_pos, y_pos, 0) == old_blue && get_pixel(x_pos, y_pos, 1) == old_green && get_pixel(x_pos, y_pos, 2) == old_red){
+                set_pixel(x_pos, y_pos, new_red, new_green, new_blue, get_pixel(x_pos, y_pos, 3));
+                floodfill(x_pos + 1, y_pos, old_red, old_green, old_blue, new_red, new_green, new_blue);
+                floodfill(x_pos - 1, y_pos, old_red, old_green, old_blue, new_red, new_green, new_blue);
+                floodfill(x_pos, y_pos + 1, old_red, old_green, old_blue, new_red, new_green, new_blue);
+                floodfill(x_pos, y_pos - 1, old_red, old_green, old_blue, new_red, new_green, new_blue);
+            }
+        }
+
         //draws a rectangle of given size
         void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x1 > x2 || y1 > y2 || x1 > width - 1 || y1 > height - 1 || x2 > width - 1 || y2 > height - 1)
+            if(x1 > x2 || y1 > y2 || x1 > width - 1 || y1 > height - 1 || x2 > width - 1 || y2 > height - 1 || !initialized)
                 return;
             for(uint32_t i = x1; i < x2; i++){
                 for(uint32_t j = y1; j < y2; j++){
@@ -232,7 +254,7 @@ namespace sbtmp{
 
         //draws a circle of given size
         void circle(uint32_t x_pos, uint32_t y_pos, int32_t radius, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x_pos > width - 1 || y_pos > height - 1 || x_pos + radius > width - 1 || y_pos + radius > height - 1 || x_pos - radius < 0 || y_pos - radius < 0 || radius < 1)
+            if(x_pos > width - 1 || y_pos > height - 1 || x_pos + radius > width - 1 || y_pos + radius > height - 1 || x_pos - radius < 0 || y_pos - radius < 0 || radius < 1 || !initialized)
                 return;
             for(int32_t i = -radius; i < radius; i++){
                 for(int32_t j = -radius; j < radius; j++){
@@ -252,31 +274,38 @@ namespace sbtmp{
         #endif
 
         //converts the image to black and white in the specified area
-        void convert_bw(uint32_t x_pos, uint32_t y_pos, uint32_t width, uint32_t height){
+        void convert_bw(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2){
+            if(x1 > width || y1 > height || x2 > width || y2 > height || !initialized)
+                return;
             char bw_color;
-            for(uint32_t i = 0; i < height; i++){
-                for(uint32_t j = 0; j < width; j++){
-                    bw_color = (pixel_data[get_index(x_pos + j, y_pos + i)+0] + pixel_data[get_index(x_pos + j, y_pos + i)+1] + pixel_data[get_index(x_pos + j, y_pos + i)+2]) / 3;
-                    pixel_data[get_index(x_pos + j, y_pos + i)+0] = bw_color;
-                    pixel_data[get_index(x_pos + j, y_pos + i)+1] = bw_color;
-                    pixel_data[get_index(x_pos + j, y_pos + i)+2] = bw_color;
+            for(uint32_t i = x1; i < x2; i++){
+                for(uint32_t j = y1; j < y2; j++){
+                    bw_color = (pixel_data[get_index(i, j)+0] + pixel_data[get_index(i, j)+1] + pixel_data[get_index(i, j)+2]) / 3;
+                    pixel_data[get_index(i, j)+0] = bw_color;
+                    pixel_data[get_index(i, j)+1] = bw_color;
+                    pixel_data[get_index(i, j)+2] = bw_color;
                 }
             }
         }
 
         //inverts the rgb values of the image in the specified area
-        void rgb_invert(uint32_t x_pos, uint32_t y_pos, uint32_t width, uint32_t height){
-            for(uint32_t i = 0; i < height; i++){
-                for(uint32_t j = 0; j < width; j++){
-                    pixel_data[get_index(x_pos + j, y_pos + i)+0] = 255 - pixel_data[get_index(x_pos + j, y_pos + i)+0];
-                    pixel_data[get_index(x_pos + j, y_pos + i)+1] = 255 - pixel_data[get_index(x_pos + j, y_pos + i)+1];
-                    pixel_data[get_index(x_pos + j, y_pos + i)+2] = 255 - pixel_data[get_index(x_pos + j, y_pos + i)+2];
+        void rgb_invert(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2){
+            if(x1 > width || y1 > height || x2 > width || y2 > height || !initialized)
+                return;
+            for(uint32_t i = x1; i < x2; i++){
+                for(uint32_t j = y1; j < y2; j++){
+                    pixel_data[get_index(i, j)+0] = 255 - pixel_data[get_index(i, j)+0];
+                    pixel_data[get_index(i, j)+1] = 255 - pixel_data[get_index(i, j)+1];
+                    pixel_data[get_index(i, j)+2] = 255 - pixel_data[get_index(i, j)+2];
                 }
             }
+            return;
         }
 
         //flips the image vertically
         void flip_vertical(){
+            if(!initialized)
+                return;
             for(uint32_t i = 0; i < height; i++){
                 for(uint32_t j = 0; j < width / 2; j++){
                     //this is magic
@@ -290,6 +319,8 @@ namespace sbtmp{
 
         //flips the image horizontally
         void flip_horizontal(){
+            if(!initialized)
+                return;
             for(uint32_t i = 0; i < height / 2; i++){
                 for(uint32_t j = 0; j < width; j++){
                     //this is magic too
@@ -319,7 +350,7 @@ namespace sbtmp{
 
         //adds rgba value to specified pixel
         void addtpixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x_pos > width - 1 || y_pos > height - 1)
+            if(x_pos > width - 1 || y_pos > height - 1 || !initialized)
                 return;
             pixel_data[get_index(x_pos, y_pos)+0] += blue;
             pixel_data[get_index(x_pos, y_pos)+1] += green;
@@ -329,7 +360,7 @@ namespace sbtmp{
 
         //subtracts rgba value from specified pixel
         void subfpixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x_pos > width - 1 || y_pos > height - 1)
+            if(x_pos > width - 1 || y_pos > height - 1 || !initialized)
                 return;
             pixel_data[get_index(x_pos, y_pos)+0] -= blue;
             pixel_data[get_index(x_pos, y_pos)+1] -= green;
@@ -339,25 +370,19 @@ namespace sbtmp{
 
         //return the r-g-b-a value of specified pixel (3rd param: 0=b, 1=g, 2=r, 3=a)
         uint8_t get_pixel(uint32_t x_pos, uint32_t y_pos, uint8_t color_index){
-            if(color_index > 3)
+            if(color_index > 3 || !initialized)
                 return 0;
             return pixel_data[get_index(x_pos, y_pos) + color_index];
         }
 
         //changes the size of the image
-        bool resize(uint32_t set_width, uint32_t set_height){
-            if(!initialized){
-                return false;
-            }
-
-            if(set_width == width && set_height == height){
-                return true;
-            }
-
-            if(set_width < width || set_height < height){
-                return false;
-            }
-
+        void resize(uint32_t set_width, uint32_t set_height){
+            if(!initialized)
+                return;
+            if(set_width == width && set_height == height)
+                return;
+            if(set_width < width || set_height < height)
+                return;
 
             width = set_width;
             height = set_height;
@@ -366,22 +391,21 @@ namespace sbtmp{
             raw_data_size = height * width * 4;
 
             pixel_data = (uint8_t*)realloc (pixel_data, raw_data_size);
-
-            return true;
         }
 
         //clears the image
         void clear(){
+            if(!initialized)
+                return;
             for(uint64_t i = 0; i < raw_data_size; i++){
                 pixel_data[i] = 0;
             }
         }
 
         //frees the memory of the image and resets all properties
-        bool reset(){
-            if(!initialized){
-                return false;
-            }
+        void reset(){
+            if(!initialized)
+                return;
 
             width = 0;
             height = 0;
@@ -392,14 +416,13 @@ namespace sbtmp{
 
             initialized = false;
 
-            return true;
+            //return true;
         }
 
         //saves the image with given filename
         bool save(const char * filename){
-            if(!initialized){
+            if(!initialized)
                 return false;
-            }
             std::ofstream out_image;
             out_image.open(filename, std::ios::binary);
 
@@ -421,7 +444,7 @@ namespace sbtmp{
             out_image.write((char *)&DPI_ver, 4);
             out_image.write((char *)&color_palette, 4);
             out_image.write((char *)&imp_colors, 4);
-
+            //missing header data(added since ver exp 0.34)
             out_image.write((char *)&red_channel_bit_mask, 4);
             out_image.write((char *)&green_channel_bit_mask, 4);
             out_image.write((char *)&blue_channel_bit_mask, 4);
@@ -430,10 +453,85 @@ namespace sbtmp{
             out_image.write((char *)&*color_space_endpoints, 36);
             out_image.write((char *)&*gamma_rgb, 12);
 
-            //much better way to write pixel data
+            //much better way to write pixel data(since ver exp 0.27)
             out_image.write((char *)&*pixel_data, raw_data_size);
 
             out_image.close();
+
+            return true;
+        }
+
+        bool load(const char * filename){
+            if(initialized)
+                return false;
+
+            std::ifstream in_image;
+            in_image.open(filename, std::ios::binary);
+
+            //"BM" header
+            char bm_header[2];
+            //total size in bytes
+            uint32_t size_bytes;
+            //pixel data offset
+            uint32_t offset;
+            //bits per pixel
+            uint16_t b_per_pix;
+
+            //read file header
+
+            //check if file starts with "BM"
+            in_image.read((char *)&bm_header, 2);
+            if(bm_header[0] != 'B' && bm_header[1] != 'M')
+                return false;
+            
+            //check if file size is correct
+            in_image.read((char *)&size_bytes, 4);
+            total_size_in_bytes = size_bytes; //unnecessary step (may be removed)
+            //std::cout << size_bytes << '\n';
+            //std::cout << in_image.tellg() << '\n';
+            in_image.seekg(0, std::ios::end); //jump to end of file
+            //std::cout << in_image.tellg() << '\n';
+            if(size_bytes != in_image.tellg())
+                return false;
+            in_image.seekg(6); //return to original location
+
+            //read and check image parameters
+            in_image.ignore(4); //2 * unused(uint16_t) = 4 bytes
+            in_image.read((char *)&offset, 4);
+            //std::cout << offset << '\n';
+            in_image.ignore(4); // ignore dib header size
+            in_image.read((char *)&width, 4);
+            //std::cout << width << '\n';
+            in_image.read((char *)&height, 4);
+            //std::cout << height << '\n';
+            in_image.ignore(2); //ignore color planes
+            in_image.read((char *)&b_per_pix, 2);
+            //std::cout << b_per_pix << '\n';
+            if(b_per_pix != 32)
+                return false;
+            in_image.ignore(4); //ignore Bl_RGB
+
+            //check if raw data size is correct and if  not correct it
+            in_image.read((char *)&raw_data_size, 4);
+            if(raw_data_size != total_size_in_bytes - offset)
+                raw_data_size = total_size_in_bytes - offset;
+
+            //std::cout << raw_data_size << '\n';
+
+            //jump to image data location
+            in_image.seekg(offset);
+            //std::cout << 1;
+            //allocate memory and load the image data
+            pixel_data = (uint8_t*)calloc (raw_data_size, sizeof(uint8_t));
+            //std::cout << 1;
+            in_image.read((char *)&*pixel_data, raw_data_size);
+            //std::cout << 1;
+
+            in_image.close();
+            //std::cout << 1;
+
+            initialized = true;
+            //std::cout << 1;
 
             return true;
         }
@@ -469,7 +567,7 @@ namespace sbtmp{
         const uint32_t DPI_hor = 2835, DPI_ver = 2835;
         const uint32_t color_palette = 0;
         const uint32_t imp_colors = 0;
-
+        //missing header data(added since ver exp 0.34)
         const uint32_t red_channel_bit_mask = 0x00ff0000;
         const uint32_t green_channel_bit_mask = 0x0000ff00;
         const uint32_t blue_channel_bit_mask = 0x000000ff;
@@ -478,8 +576,8 @@ namespace sbtmp{
         const uint8_t color_space_endpoints[36] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
         const uint32_t gamma_rgb[3] = {0, 0, 0};
 
-        const uint8_t padding = 0;
-        uint8_t padding_size;
+        //const uint8_t padding = 0;
+        //uint8_t padding_size;
         uint8_t * pixel_data = (uint8_t*)malloc (0);
         bool initialized = false;
 
@@ -487,5 +585,46 @@ namespace sbtmp{
         uint64_t get_index(uint32_t x_pos, uint32_t y_pos){
             return ((width - y_pos - 1) * width + x_pos) * 4; //y_pos is inverted because of the way the image is stored
         }
+    };
+
+    class color{
+        void set_red(uint8_t red){
+            color_data = (color_data & 0x00ffffff) | ((uint32_t)red << 24);
+        }
+
+        void set_green(uint8_t green){
+            color_data = (color_data & 0xff00ffff) | ((uint32_t)green << 16);
+        }
+
+        void set_blue(uint8_t blue){
+            color_data = (color_data & 0xffff00ff) | ((uint32_t)blue << 8);
+        }
+
+        void set_alpha(uint8_t alpha){
+            color_data = (color_data & 0xffffff00) | ((uint32_t)alpha);
+        }
+
+        void set_raw(uint32_t raw){
+            color_data = raw;
+        }
+
+        uint8_t get_red(){
+            return color_data >> 24;
+        }
+
+        uint8_t get_green(){
+            return (color_data >> 16) & 0x000000ff;
+        }
+
+        uint8_t get_blue(){
+            return (color_data >> 8) & 0x000000ff;
+        }
+
+        uint8_t get_alpha(){
+            return color_data & 0x000000ff;
+        }
+
+        private:
+        uint32_t color_data = 0x000000ff;   //color is not transparent by default
     };
 }
