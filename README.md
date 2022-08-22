@@ -5,13 +5,12 @@ This is my first (public) GitHub repo.
 
 # Usage:
 
-## creating / resizing / resetting / clearing / saving:
+## creating / resizing / resetting / clearing / saving / loading:
 
 ### Creating a bitmap
 
 //create a new bitmap "test"  
 bitmap test;
-
 
 ### Initializing a bitmap
 
@@ -35,10 +34,11 @@ test.reset();
   
 ### Saving a bitmap
 
-//string​ not included  
-test.save((char*)"abcd.bmp\0");  
-//string​ included  
 test.save("abcd.bmp");  
+
+### Loading a bitmap
+
+test.load("abcd.bmp");  
 
 ## editing:
 
