@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.35
+/* very simple bitmap library version exp 0.36
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
@@ -58,12 +58,19 @@
  * - Added color datatype (no real use yet)
  * - Added image load function
  * - Added floodfill function
+ *
+ * 0.36:
+ * - Circle function is fixed (not all pixels of a circle have to be inside the image)
+ *      -Circles can be outside of an image and be visible at the edge
+ *      -Circles can be in the corner of an image
+ * - Changed color datatype from class to struct
+ * - Colors can now be passed to a function directly
+ *      -some_func(sbtmp::color(sbtmp_blue)); //this works now
  * 
  * 
  * TODO:
- * - fix circle function (does not work when part of the circle is outside of the image)
- * - fix triangle drawing function
  * - fix breseham line drawing algorithm
+ * - fix triangle drawing function
  * - add blur function
  * - add color datatype wrapper functions
  * - add function to load bitmap data from arrays
@@ -74,7 +81,58 @@
 
 #include <fstream>
 
+
 namespace sbtmp{
+
+    struct color{
+
+        // public:
+        color(uint32_t raw){
+            color_data = raw;
+        }
+
+        color() = default;
+
+        void set_red(uint8_t red){
+            color_data = (color_data & 0x00ffffff) | ((uint32_t)red << 24);
+        }
+
+        void set_green(uint8_t green){
+            color_data = (color_data & 0xff00ffff) | ((uint32_t)green << 16);
+        }
+
+        void set_blue(uint8_t blue){
+            color_data = (color_data & 0xffff00ff) | ((uint32_t)blue << 8);
+        }
+
+        void set_alpha(uint8_t alpha){
+            color_data = (color_data & 0xffffff00) | ((uint32_t)alpha);
+        }
+
+        uint8_t get_red(){
+            return color_data >> 24;
+        }
+
+        uint8_t get_green(){
+            return (color_data >> 16) & 0x000000ff;
+        }
+
+        uint8_t get_blue(){
+            return (color_data >> 8) & 0x000000ff;
+        }
+
+        uint8_t get_alpha(){
+            return color_data & 0x000000ff;
+        }
+
+        uint32_t color_data = 0x000000ff;   //color is not transparent by default
+    };
+
+
+
+
+
+    
 
     class bitmap{
         public:
@@ -144,6 +202,10 @@ namespace sbtmp{
             pixel_data[get_index(x_pos, y_pos)+1] = green;
             pixel_data[get_index(x_pos, y_pos)+2] = red;
             pixel_data[get_index(x_pos, y_pos)+3] = alpha;
+        }
+
+        void set_pixel(uint32_t x_pos, uint32_t y_pos, color& val){
+            set_pixel(x_pos, x_pos, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
         }
 
         #ifdef sbtmp_experimental
@@ -228,6 +290,10 @@ namespace sbtmp{
             }
         }
 
+        void fill(color val){
+            fill(val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        }
+
         //floodfill like "bucket" in paint
         void floodfill(uint32_t x_pos, uint32_t y_pos, uint8_t old_red, uint8_t old_green, uint8_t old_blue, uint8_t new_red, uint8_t new_green, uint8_t new_blue){
             if(x_pos > width - 1 || y_pos > height - 1 || !initialized)
@@ -241,6 +307,10 @@ namespace sbtmp{
             }
         }
 
+        void floodfill(uint32_t x_pos, uint32_t y_pos, color& old_col, color& new_col){
+            floodfill(x_pos, y_pos, old_col.get_red(), old_col.get_green(), old_col.get_blue(), new_col.get_red(), new_col.get_green(), new_col.get_blue());
+        }
+
         //draws a rectangle of given size
         void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             if(x1 > x2 || y1 > y2 || x1 > width - 1 || y1 > height - 1 || x2 > width - 1 || y2 > height - 1 || !initialized)
@@ -252,17 +322,25 @@ namespace sbtmp{
             }
         }
 
+        void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, color val){
+            rectangle(x1, y1, x2, y2, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        }
+
         //draws a circle of given size
-        void circle(uint32_t x_pos, uint32_t y_pos, int32_t radius, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x_pos > width - 1 || y_pos > height - 1 || x_pos + radius > width - 1 || y_pos + radius > height - 1 || x_pos - radius < 0 || y_pos - radius < 0 || radius < 1 || !initialized)
+        void circle(int32_t x_pos, int32_t y_pos, int32_t radius, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(/*x_pos > width - 1 || y_pos > height - 1 || x_pos + radius > width - 1 || y_pos + radius > height - 1 || x_pos - radius < 0 || y_pos - radius < 0 || */radius < 1 || !initialized)
                 return;
             for(int32_t i = -radius; i < radius; i++){
                 for(int32_t j = -radius; j < radius; j++){
-                    if(i * i + j * j <= radius * radius){
+                    if(i * i + j * j <= radius * radius && x_pos + i < width && x_pos + i >= 0 && y_pos + j < height && y_pos + j >= 0){
                         set_pixel(x_pos + i, y_pos + j, red, green, blue, alpha);
                     }
                 }
             }
+        }
+
+        void circle(uint32_t x_pos, uint32_t y_pos, int32_t radius, color val){
+            circle(x_pos, y_pos, radius, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
         }
 
         #ifdef sbtmp_experimental
@@ -358,6 +436,10 @@ namespace sbtmp{
             pixel_data[get_index(x_pos, y_pos)+3] += alpha;
         }
 
+        void addtpixel(uint32_t x_pos, uint32_t y_pos, color val){
+            addtpixel(x_pos, x_pos, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        }
+
         //subtracts rgba value from specified pixel
         void subfpixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             if(x_pos > width - 1 || y_pos > height - 1 || !initialized)
@@ -368,11 +450,19 @@ namespace sbtmp{
             pixel_data[get_index(x_pos, y_pos)+3] -= alpha;
         }
 
+        void subfpixel(uint32_t x_pos, uint32_t y_pos, color val){
+            subfpixel(x_pos, x_pos, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        }
+
         //return the r-g-b-a value of specified pixel (3rd param: 0=b, 1=g, 2=r, 3=a)
         uint8_t get_pixel(uint32_t x_pos, uint32_t y_pos, uint8_t color_index){
             if(color_index > 3 || !initialized)
                 return 0;
             return pixel_data[get_index(x_pos, y_pos) + color_index];
+        }
+
+        color get_pixel(uint32_t x_pos, uint32_t y_pos){
+            return color(get_pixel(x_pos, y_pos, 2) << 24 | get_pixel(x_pos, y_pos, 1) << 16 | get_pixel(x_pos, y_pos, 0) << 8 | get_pixel(x_pos, y_pos, 3));
         }
 
         //changes the size of the image
@@ -587,44 +677,19 @@ namespace sbtmp{
         }
     };
 
-    class color{
-        void set_red(uint8_t red){
-            color_data = (color_data & 0x00ffffff) | ((uint32_t)red << 24);
-        }
 
-        void set_green(uint8_t green){
-            color_data = (color_data & 0xff00ffff) | ((uint32_t)green << 16);
-        }
 
-        void set_blue(uint8_t blue){
-            color_data = (color_data & 0xffff00ff) | ((uint32_t)blue << 8);
-        }
-
-        void set_alpha(uint8_t alpha){
-            color_data = (color_data & 0xffffff00) | ((uint32_t)alpha);
-        }
-
-        void set_raw(uint32_t raw){
-            color_data = raw;
-        }
-
-        uint8_t get_red(){
-            return color_data >> 24;
-        }
-
-        uint8_t get_green(){
-            return (color_data >> 16) & 0x000000ff;
-        }
-
-        uint8_t get_blue(){
-            return (color_data >> 8) & 0x000000ff;
-        }
-
-        uint8_t get_alpha(){
-            return color_data & 0x000000ff;
-        }
-
-        private:
-        uint32_t color_data = 0x000000ff;   //color is not transparent by default
-    };
+    #define sbtmp_black 0x000000ff
+    #define sbtmp_white 0xffffffff
+    #define sbtmp_red 0xff0000ff
+    #define sbtmp_dark_red 0x800000ff
+    #define sbtmp_green 0x00ff00ff
+    #define sbtmp_dark_green 0x008000ff
+    #define sbtmp_blue 0x0000ffff
+    #define sbtmp_dark_blue 0x000080ff
+    #define sbtmp_purple 0xff00ffff
+    #define sbtmp_dark_purple 0x800080ff
+    #define sbtmp_yellow 0xffff00ff
+    #define sbtmp_orange 0xffA500ff
+    #define sbtmp_cyan 0x00ffffff
 }
