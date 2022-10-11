@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.36
+/* very simple bitmap library version exp 0.38
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
@@ -67,12 +67,16 @@
  * - Colors can now be passed to a function directly
  *      -some_func(sbtmp::color(sbtmp_blue)); //this works now
  * 
+ * 0.37
+ * - Line function fixed (FINALLY)
+ * - Triangle function rewritten and fixed
+ * 
+ * 0.38
+ * - some random fixes and improvements
+ * 
  * 
  * TODO:
- * - fix breseham line drawing algorithm
- * - fix triangle drawing function
  * - add blur function
- * - add color datatype wrapper functions
  * - add function to load bitmap data from arrays
  * - add more filters and resize functions (nearest neighbour | bilinear | bicubic)
  * - add characater/string drawing function
@@ -81,6 +85,21 @@
 
 #include <fstream>
 
+
+
+#define sbtmp_black 0x000000ff
+#define sbtmp_white 0xffffffff
+#define sbtmp_red 0xff0000ff
+#define sbtmp_dark_red 0x800000ff
+#define sbtmp_green 0x00ff00ff
+#define sbtmp_dark_green 0x008000ff
+#define sbtmp_blue 0x0000ffff
+#define sbtmp_dark_blue 0x000080ff
+#define sbtmp_purple 0xff00ffff
+#define sbtmp_dark_purple 0x800080ff
+#define sbtmp_yellow 0xffff00ff
+#define sbtmp_orange 0xffA500ff
+#define sbtmp_cyan 0x00ffffff
 
 namespace sbtmp{
 
@@ -125,14 +144,8 @@ namespace sbtmp{
             return color_data & 0x000000ff;
         }
 
-        uint32_t color_data = 0x000000ff;   //color is not transparent by default
+        uint32_t color_data = 0x000000ff;   //color is black and not transparent by default
     };
-
-
-
-
-
-    
 
     class bitmap{
         public:
@@ -204,80 +217,41 @@ namespace sbtmp{
             pixel_data[get_index(x_pos, y_pos)+3] = alpha;
         }
 
-        void set_pixel(uint32_t x_pos, uint32_t y_pos, color& val){
-            set_pixel(x_pos, x_pos, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        //set pixel at coords x_pos, y_pos to rgba value
+        void set_pixel(uint32_t x_pos, uint32_t y_pos, color val){
+            set_pixel(x_pos, y_pos, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
         }
 
-        #ifdef sbtmp_experimental
-        void line(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x1 > x2 || y1 > y2 || x1 > width - 1 || y1 > height - 1 || x2 > width - 1 || y2 > height - 1)
+        //draws line between two points
+        void line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(x1 < 0 || x1 > width - 1 || x2 < 0 || x2 > width - 1 || y1 < 0 || y1 > height - 1 || y2 < 0 || y2 > height - 1 || !initialized)
                 return;
-            //Bresenham's line algorithm
-            int32_t x, y, dx, dy, dx1, dy1, px, py, xe, ye, i;
-            dx = x2 - x1;
-            dy = y2 - y1;
-            dx1 = abs(dx);
-            dy1 = abs(dy);
-            px = 2 * dy1 - dx1;
-            py = 2 * dx1 - dy1;
-            if(dy1 <= dx1){
-                if(dx >= 0){
-                    x = x1;
-                    y = y1;
-                    xe = x2;
+            int32_t ax = x2 - x1, ay = y2 - y1;
+            ax = (ax < 0) ? -ax : ax;
+            ay = (ay < 0) ? ay : -ay;
+            int32_t dx = ax, sx = x1 < x2 ? 1 : -1;
+            int32_t dy = ay, sy = y1 < y2 ? 1 : -1;
+            int32_t err = dx + dy, e2;
+
+            while (true) {
+                set_pixel(x1, y1, red, green, blue, alpha);
+                if (x1 == x2 && y1 == y2) break;
+                e2 = 2 * err;
+                if (e2 > dy){
+                    err += dy;
+                    x1 += sx;
                 }
-                else{
-                    x = x2;
-                    y = y2;
-                    xe = x1;
-                }
-                set_pixel(x, y, red, green, blue, alpha);
-                for(i = 0; x < xe; i++){
-                    x = x + 1;
-                    if(px < 0){
-                        px = px + 2 * dy1;
-                    }
-                    else{
-                        if((dx < 0 && dy < 0) || (dx > 0 && dy > 0)){
-                            y = y + 1;
-                        }
-                        else{
-                            y = y - 1;
-                        }
-                    }
-                    set_pixel(x, y, red, green, blue, alpha);
-                }
-            }
-            else{
-                if(dy >= 0){
-                    x = x1;
-                    y = y1;
-                    ye = y2;
-                }
-                else{
-                    x = x2;
-                    y = y2;
-                    ye = y1;
-                }
-                set_pixel(x, y, red, green, blue, alpha);
-                for(i = 0; y < ye; i++){
-                    y = y + 1;
-                    if(py <= 0){
-                        py = py + 2 * dx1;
-                    }
-                    else{
-                        if((dx < 0 && dy < 0) || (dx > 0 && dy > 0)){
-                            x = x + 1;
-                        }
-                        else{
-                            x = x - 1;
-                        }
-                    }
-                    set_pixel(x, y, red, green, blue, alpha);
+                if (e2 < dx){
+                    err += dx;
+                    y1 += sy;
                 }
             }
         }
-        #endif
+
+        //draws line between two points
+        void line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, color val){
+            line(x1, y1, x2, y2, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        }
 
         //sets every pixel of the image to rgba value
         void fill(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
@@ -290,6 +264,7 @@ namespace sbtmp{
             }
         }
 
+        //sets every pixel of the image to rgba value
         void fill(color val){
             fill(val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
         }
@@ -307,6 +282,7 @@ namespace sbtmp{
             }
         }
 
+        //floodfill like "bucket" in paint
         void floodfill(uint32_t x_pos, uint32_t y_pos, color& old_col, color& new_col){
             floodfill(x_pos, y_pos, old_col.get_red(), old_col.get_green(), old_col.get_blue(), new_col.get_red(), new_col.get_green(), new_col.get_blue());
         }
@@ -322,6 +298,7 @@ namespace sbtmp{
             }
         }
 
+        //draws a rectangle of given size
         void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, color val){
             rectangle(x1, y1, x2, y2, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
         }
@@ -343,13 +320,17 @@ namespace sbtmp{
             circle(x_pos, y_pos, radius, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
         }
 
-        #ifdef sbtmp_experimental
-        void triangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint32_t x3, uint32_t y3, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+        //draw triangle by connecting three points with lines
+        void triangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             line(x1, y1, x2, y2, red, green, blue, alpha);
             line(x2, y2, x3, y3, red, green, blue, alpha);
             line(x3, y3, x1, y1, red, green, blue, alpha);
         }
-        #endif
+
+        //draw triangle by connecting three points with lines
+        void triangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color val){
+            triangle(x1, y1, x2, y2, x3, y3, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        }
 
         //converts the image to black and white in the specified area
         void convert_bw(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2){
@@ -551,6 +532,7 @@ namespace sbtmp{
             return true;
         }
 
+        //will load almost any crap, so be careful (very crashy)
         bool load(const char * filename){
             if(initialized)
                 return false;
@@ -626,6 +608,13 @@ namespace sbtmp{
             return true;
         }
 
+        #ifdef sbtmp_experimental
+        //returns pointer (maybe?)
+        uint8_t * ptr(){
+            return pixel_data;
+        }
+        #endif
+
         //if std::string is included, the save function can be called with a string instead of a char array
         #if defined(_GLIBCXX_STRING_) //gnu gcc compiler (linux)
             bool save(std::string filename){
@@ -668,7 +657,8 @@ namespace sbtmp{
 
         //const uint8_t padding = 0;
         //uint8_t padding_size;
-        uint8_t * pixel_data = (uint8_t*)malloc (0);
+        //uint8_t * pixel_data = (uint8_t*)malloc (0);
+        uint8_t * pixel_data = NULL; //is this the same as above?
         bool initialized = false;
 
         //function used to get the array index of any pixel
@@ -676,20 +666,4 @@ namespace sbtmp{
             return ((width - y_pos - 1) * width + x_pos) * 4; //y_pos is inverted because of the way the image is stored
         }
     };
-
-
-
-    #define sbtmp_black 0x000000ff
-    #define sbtmp_white 0xffffffff
-    #define sbtmp_red 0xff0000ff
-    #define sbtmp_dark_red 0x800000ff
-    #define sbtmp_green 0x00ff00ff
-    #define sbtmp_dark_green 0x008000ff
-    #define sbtmp_blue 0x0000ffff
-    #define sbtmp_dark_blue 0x000080ff
-    #define sbtmp_purple 0xff00ffff
-    #define sbtmp_dark_purple 0x800080ff
-    #define sbtmp_yellow 0xffff00ff
-    #define sbtmp_orange 0xffA500ff
-    #define sbtmp_cyan 0x00ffffff
 }
