@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.43
+/* very simple bitmap library version exp 0.44
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
@@ -92,9 +92,12 @@
  * 0.43
  * - added/fixed floodfill function
  * 
+ * 0.44
+ * - improved the blur function
+ * 
  * TODO:
  * - add function to load bitmap data from arrays
- * - make a better blur function
+ * - make an even better blur function
  * - add more filters and resize functions (nearest neighbour | bilinear | bicubic)
  * - add character/string drawing function
  */
@@ -459,17 +462,26 @@ namespace sbtmp{
             if(!initialized)
                 return;
             //Bitmap buff(width, height); //not needed yet
-            for(uint32_t y = 1; y < btmp_height; y++){
-                for(uint32_t x = 0; x < btmp_width - 1; x++){
-                    set_pixel(x, y, color::col_avg(get_pixel(x, y), get_pixel(x + 1, y)));
-                    set_pixel(x, y, color::col_avg(get_pixel(x, y), get_pixel(x, y - 1)));
+            for(uint32_t y = 1; y < btmp_height - 1; y++){
+                for(uint32_t x = 1; x < btmp_width - 1; x++){
+                    set_pixel(x, y, // set the pixel to the average of all 8 sourrounding pixels
+                    color::col_avg( // avg of all the avgs
+                        color::col_avg( // avg of the of the pixels next to the current pixel
+                            color::col_avg( // avg of the pixels left and right to the current pixel
+                                get_pixel(x - 1, y), 
+                                get_pixel(x + 1, y)), 
+                                color::col_avg( // avg of the pixels over and below the current pixel
+                                    get_pixel(x, y - 1), 
+                                    get_pixel(x, y + 1))), 
+                                    color::col_avg( // avg of the pixels in the corners of the current pixel
+                                        color::col_avg( // avg of the higher and lower right corner pixels
+                                            get_pixel(x + 1, y - 1), 
+                                            get_pixel(x + 1, y + 1)), 
+                                            color::col_avg( // avg of the higher and lower left corner pixels
+                                                get_pixel(x - 1, y - 1), 
+                                                get_pixel(x - 1, y + 1))))); // this looks like a mess, because it is, but it works
                 }
             }
-            // for(uint32_t y = btmp_height - 1; y > 1; y--){
-            //     for(uint32_t x = btmp_width - 1; x > 1; x--){
-            //         set_pixel(x, y, color::col_avg(get_pixel(x, y), get_pixel(x, y - 1)));
-            //     }
-            // }
         }
 
         #ifdef sbtmp_experimental
