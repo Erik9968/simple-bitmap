@@ -1,14 +1,10 @@
-/* very simple bitmap library version exp 0.38
+/* very simple bitmap library version exp 0.41
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
  * The original library used vectors to store the bitmap data. (It was too slow)
  * 
- * A few functions are not working properly:
- * breseham line drawing algorithm
- * triangle drawing function (uses bresenham line drawing algorithm)
- * 
- * This library can since ver exp 0.35 load 32bit bitmap image files
+ * This library can load 32bit bitmap image files since ver exp 0.35
  * The function is currently very picky because it expects a very basic bmp and dib header
  * This means that any extra information like embedded icc color profiles or other stuff will
  * be ignored or more likely cause the load function to crash
@@ -17,6 +13,11 @@
  * I used the following resources to help me with this library:
  * https://en.wikipedia.org/wiki/BMP_file_format
  * https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
+ * 
+ * Expect bugs, crashes, memory corruption, leaks and all of the bad stuff
+ * 
+ * 
+ * Oh and my English sucks...
  * 
  * 
  * Changelog:
@@ -61,8 +62,7 @@
  *
  * 0.36:
  * - Circle function is fixed (not all pixels of a circle have to be inside the image)
- *      -Circles can be outside of an image and be visible at the edge
- *      -Circles can be in the corner of an image
+ *      -Area of circles can be outside of an image and be only partly visible
  * - Changed color datatype from class to struct
  * - Colors can now be passed to a function directly
  *      -some_func(sbtmp::color(sbtmp_blue)); //this works now
@@ -74,84 +74,96 @@
  * 0.38
  * - some random fixes and improvements
  * 
+ * 0.39 (is this even an update?)
+ * - permanently removed floodfill function
+ *      - causes stack overflow when the part that should be filled is too big
+ *      - iterative version will not be developed
+ *      - consider floodfill as dead
+ * 
+ * 0.40
+ * - removed color class and replaced it with a typedef
+ * 
+ * 0.41
+ * - added destructor to prevent memory leak
  * 
  * TODO:
  * - add blur function
  * - add function to load bitmap data from arrays
  * - add more filters and resize functions (nearest neighbour | bilinear | bicubic)
- * - add characater/string drawing function
+ * - add character/string drawing function
  */
 
 
 #include <fstream>
 
-
-
-#define sbtmp_black 0x000000ff
-#define sbtmp_white 0xffffffff
-#define sbtmp_red 0xff0000ff
-#define sbtmp_dark_red 0x800000ff
-#define sbtmp_green 0x00ff00ff
-#define sbtmp_dark_green 0x008000ff
-#define sbtmp_blue 0x0000ffff
-#define sbtmp_dark_blue 0x000080ff
-#define sbtmp_purple 0xff00ffff
-#define sbtmp_dark_purple 0x800080ff
-#define sbtmp_yellow 0xffff00ff
-#define sbtmp_orange 0xffA500ff
-#define sbtmp_cyan 0x00ffffff
-
 namespace sbtmp{
 
-    struct color{
+    namespace color{
 
-        // public:
-        color(uint32_t raw){
-            color_data = raw;
+        typedef uint32_t Color;
+
+        constexpr Color black       = 0x000000ff;
+        constexpr Color white       = 0xffffffff;
+        constexpr Color red         = 0x0000ffff;
+        constexpr Color dark_red    = 0x000080ff;
+        constexpr Color green       = 0x00ff00ff;
+        constexpr Color dark_green  = 0x008000ff;
+        constexpr Color blue        = 0xff0000ff;
+        constexpr Color dark_blue   = 0x800000ff;
+        constexpr Color purple      = 0xff00ffff;
+        constexpr Color dark_purple = 0x800080ff;
+        constexpr Color yellow      = 0x00ffffff;
+        constexpr Color orange      = 0x00A5ffff;
+        constexpr Color cyan        = 0xffff00ff;
+
+
+        Color set_col(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            return (uint32_t)blue << 24 | (uint32_t)green << 16 | (uint32_t)red << 8 | (uint32_t)alpha;
         }
 
-        color() = default;
-
-        void set_red(uint8_t red){
-            color_data = (color_data & 0x00ffffff) | ((uint32_t)red << 24);
+        void set_col(Color &col, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            col = (uint32_t)blue << 24 | (uint32_t)green << 16 | (uint32_t)red << 8 | (uint32_t)alpha;
         }
 
-        void set_green(uint8_t green){
-            color_data = (color_data & 0xff00ffff) | ((uint32_t)green << 16);
+        void set_red(Color &col, uint8_t red){
+            col |= (uint32_t)red << 8;
         }
 
-        void set_blue(uint8_t blue){
-            color_data = (color_data & 0xffff00ff) | ((uint32_t)blue << 8);
+        void set_green(Color &col, uint8_t green){
+            col |= (uint32_t)green << 16;
         }
 
-        void set_alpha(uint8_t alpha){
-            color_data = (color_data & 0xffffff00) | ((uint32_t)alpha);
+        void set_blue(Color &col, uint8_t blue){
+            col |= (uint32_t)blue << 24;
         }
 
-        uint8_t get_red(){
-            return color_data >> 24;
+        void set_alpha(Color &col, uint32_t alpha){
+            col |= (uint32_t)alpha;
         }
 
-        uint8_t get_green(){
-            return (color_data >> 16) & 0x000000ff;
+        uint8_t get_red(Color col){
+            return col >> 8;
         }
 
-        uint8_t get_blue(){
-            return (color_data >> 8) & 0x000000ff;
+        uint8_t get_green(Color col){
+            return col >> 16;
         }
 
-        uint8_t get_alpha(){
-            return color_data & 0x000000ff;
+        uint8_t get_blue(Color col){
+            return col >> 24;
         }
 
-        uint32_t color_data = 0x000000ff;   //color is black and not transparent by default
-    };
+        uint8_t get_alpha(Color col){
+            return col;
+        }
 
-    class bitmap{
+    }
+
+    class Bitmap{
         public:
 
         //constructor
-        bitmap(uint32_t set_width, uint32_t set_height) {
+        Bitmap(uint32_t set_width, uint32_t set_height) {
             if(initialized)
                 return;
 
@@ -168,7 +180,13 @@ namespace sbtmp{
         }
 
         //allows not using the constructor
-        bitmap() = default;
+        Bitmap() = default;
+
+        //destructor
+        ~Bitmap(){
+            // free data to prevent memory leak
+            free(pixel_data);
+        }
 
         //create function (recommended way to init images)
         void create(uint32_t set_width, uint32_t set_height){
@@ -182,7 +200,7 @@ namespace sbtmp{
             raw_data_size = height * width * 4;
 
             //pixel_data = (uint8_t*)realloc (pixel_data, raw_data_size);
-            pixel_data = (uint8_t*)calloc (raw_data_size, sizeof(uint8_t));
+            pixel_data = (uint8_t*)calloc(raw_data_size, sizeof(uint8_t));
 
             initialized = true;
         }
@@ -218,8 +236,8 @@ namespace sbtmp{
         }
 
         //set pixel at coords x_pos, y_pos to rgba value
-        void set_pixel(uint32_t x_pos, uint32_t y_pos, color val){
-            set_pixel(x_pos, y_pos, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        void set_pixel(uint32_t x_pos, uint32_t y_pos, color::Color val){
+            set_pixel(x_pos, y_pos, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //draws line between two points
@@ -249,8 +267,8 @@ namespace sbtmp{
         }
 
         //draws line between two points
-        void line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, color val){
-            line(x1, y1, x2, y2, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        void line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, color::Color val){
+            line(x1, y1, x2, y2, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //sets every pixel of the image to rgba value
@@ -265,27 +283,51 @@ namespace sbtmp{
         }
 
         //sets every pixel of the image to rgba value
-        void fill(color val){
-            fill(val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        void fill(color::Color val){
+            fill(color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
-        //floodfill like "bucket" in paint
-        void floodfill(uint32_t x_pos, uint32_t y_pos, uint8_t old_red, uint8_t old_green, uint8_t old_blue, uint8_t new_red, uint8_t new_green, uint8_t new_blue){
-            if(x_pos > width - 1 || y_pos > height - 1 || !initialized)
-                return;
-            if(get_pixel(x_pos, y_pos, 0) == old_blue && get_pixel(x_pos, y_pos, 1) == old_green && get_pixel(x_pos, y_pos, 2) == old_red){
-                set_pixel(x_pos, y_pos, new_red, new_green, new_blue, get_pixel(x_pos, y_pos, 3));
-                floodfill(x_pos + 1, y_pos, old_red, old_green, old_blue, new_red, new_green, new_blue);
-                floodfill(x_pos - 1, y_pos, old_red, old_green, old_blue, new_red, new_green, new_blue);
-                floodfill(x_pos, y_pos + 1, old_red, old_green, old_blue, new_red, new_green, new_blue);
-                floodfill(x_pos, y_pos - 1, old_red, old_green, old_blue, new_red, new_green, new_blue);
-            }
-        }
+
+        //some failed floodfill functions (cause stack overflow)
 
         //floodfill like "bucket" in paint
-        void floodfill(uint32_t x_pos, uint32_t y_pos, color& old_col, color& new_col){
-            floodfill(x_pos, y_pos, old_col.get_red(), old_col.get_green(), old_col.get_blue(), new_col.get_red(), new_col.get_green(), new_col.get_blue());
-        }
+        // void floodfill(uint32_t x_pos, uint32_t y_pos, uint8_t old_red, uint8_t old_green, uint8_t old_blue, uint8_t new_red, uint8_t new_green, uint8_t new_blue){
+        //     if(x_pos > width - 1 || y_pos > height - 1 || !initialized)
+        //         return;
+        //     std::cout << x_pos << "\t" << y_pos << "\n";
+        //     if((get_pixel(x_pos, y_pos, 0) == old_blue && get_pixel(x_pos, y_pos, 1) == old_green && get_pixel(x_pos, y_pos, 2) == old_red) || !(get_pixel(x_pos, y_pos, 0) == new_blue && get_pixel(x_pos, y_pos, 1) == new_green && get_pixel(x_pos, y_pos, 2) == new_red)){
+        //         set_pixel(x_pos, y_pos, new_red, new_green, new_blue, get_pixel(x_pos, y_pos, 3));
+        //         floodfill(x_pos + 1, y_pos, old_red, old_green, old_blue, new_red, new_green, new_blue);
+        //         if(!(x_pos == 0))
+        //             floodfill(x_pos - 1, y_pos, old_red, old_green, old_blue, new_red, new_green, new_blue);
+        //         floodfill(x_pos, y_pos + 1, old_red, old_green, old_blue, new_red, new_green, new_blue);
+        //         if(!(y_pos == 0))
+        //             floodfill(x_pos, y_pos - 1, old_red, old_green, old_blue, new_red, new_green, new_blue);
+        //     }
+        // }
+
+        // void floodfill(int32_t x_pos, int32_t y_pos, uint8_t old_red, uint8_t old_green, uint8_t old_blue, uint8_t new_red, uint8_t new_green, uint8_t new_blue){
+        //     if(x_pos < 0 || !(x_pos < width) || y_pos < 0 || !(y_pos < height))
+        //         return;
+        //     if(get_pixel(x_pos, y_pos, 0) != old_blue || get_pixel(x_pos, y_pos, 1) != old_green || get_pixel(x_pos, y_pos, 2) != old_red)
+        //         return;
+        //     if(get_pixel(x_pos, y_pos, 0) == new_blue && get_pixel(x_pos, y_pos, 1) == new_green && get_pixel(x_pos, y_pos, 2) == new_red)
+        //         return;
+
+
+
+        //     set_pixel(x_pos, y_pos, new_red, new_green, new_red, get_pixel(x_pos, y_pos, 3));
+
+        //     floodfill(x_pos + 1, y_pos, old_red, old_green, old_blue, new_red, new_green, new_blue);
+        //     floodfill(x_pos - 1, y_pos, old_red, old_green, old_blue, new_red, new_green, new_blue);
+        //     floodfill(x_pos, y_pos + 1, old_red, old_green, old_blue, new_red, new_green, new_blue);
+        //     floodfill(x_pos, y_pos - 1, old_red, old_green, old_blue, new_red, new_green, new_blue);
+        // }
+
+        //floodfill like "bucket" in paint
+        // void floodfill(uint32_t x_pos, uint32_t y_pos, color old_col, color new_col){
+        //     floodfill(x_pos, y_pos, old_col.get_red(), old_col.get_green(), old_col.get_blue(), new_col.get_red(), new_col.get_green(), new_col.get_blue());
+        // }
 
         //draws a rectangle of given size
         void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
@@ -299,13 +341,13 @@ namespace sbtmp{
         }
 
         //draws a rectangle of given size
-        void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, color val){
-            rectangle(x1, y1, x2, y2, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, color::Color val){
+            rectangle(x1, y1, x2, y2, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //draws a circle of given size
         void circle(int32_t x_pos, int32_t y_pos, int32_t radius, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(/*x_pos > width - 1 || y_pos > height - 1 || x_pos + radius > width - 1 || y_pos + radius > height - 1 || x_pos - radius < 0 || y_pos - radius < 0 || */radius < 1 || !initialized)
+            if(radius < 1 || !initialized)
                 return;
             for(int32_t i = -radius; i < radius; i++){
                 for(int32_t j = -radius; j < radius; j++){
@@ -316,8 +358,8 @@ namespace sbtmp{
             }
         }
 
-        void circle(uint32_t x_pos, uint32_t y_pos, int32_t radius, color val){
-            circle(x_pos, y_pos, radius, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        void circle(uint32_t x_pos, uint32_t y_pos, int32_t radius, color::Color val){
+            circle(x_pos, y_pos, radius, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //draw triangle by connecting three points with lines
@@ -328,8 +370,8 @@ namespace sbtmp{
         }
 
         //draw triangle by connecting three points with lines
-        void triangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color val){
-            triangle(x1, y1, x2, y2, x3, y3, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        void triangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color::Color val){
+            triangle(x1, y1, x2, y2, x3, y3, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //converts the image to black and white in the specified area
@@ -417,8 +459,8 @@ namespace sbtmp{
             pixel_data[get_index(x_pos, y_pos)+3] += alpha;
         }
 
-        void addtpixel(uint32_t x_pos, uint32_t y_pos, color val){
-            addtpixel(x_pos, x_pos, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        void addtpixel(uint32_t x_pos, uint32_t y_pos, color::Color val){
+            addtpixel(x_pos, x_pos, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //subtracts rgba value from specified pixel
@@ -431,8 +473,8 @@ namespace sbtmp{
             pixel_data[get_index(x_pos, y_pos)+3] -= alpha;
         }
 
-        void subfpixel(uint32_t x_pos, uint32_t y_pos, color val){
-            subfpixel(x_pos, x_pos, val.get_red(), val.get_green(), val.get_blue(), val.get_alpha());
+        void subfpixel(uint32_t x_pos, uint32_t y_pos, color::Color val){
+            subfpixel(x_pos, x_pos, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //return the r-g-b-a value of specified pixel (3rd param: 0=b, 1=g, 2=r, 3=a)
@@ -442,8 +484,8 @@ namespace sbtmp{
             return pixel_data[get_index(x_pos, y_pos) + color_index];
         }
 
-        color get_pixel(uint32_t x_pos, uint32_t y_pos){
-            return color(get_pixel(x_pos, y_pos, 2) << 24 | get_pixel(x_pos, y_pos, 1) << 16 | get_pixel(x_pos, y_pos, 0) << 8 | get_pixel(x_pos, y_pos, 3));
+        color::Color get_pixel(uint32_t x_pos, uint32_t y_pos){
+            return get_pixel(x_pos, y_pos, 2) << 8 | get_pixel(x_pos, y_pos, 1) << 16 | get_pixel(x_pos, y_pos, 0) << 24 | get_pixel(x_pos, y_pos, 3);
         }
 
         //changes the size of the image
@@ -461,7 +503,7 @@ namespace sbtmp{
             total_size_in_bytes = pixel_data_offset + height * width * 4;
             raw_data_size = height * width * 4;
 
-            pixel_data = (uint8_t*)realloc (pixel_data, raw_data_size);
+            pixel_data = (uint8_t*)realloc(pixel_data, raw_data_size);
         }
 
         //clears the image
@@ -483,11 +525,10 @@ namespace sbtmp{
             total_size_in_bytes = 0;
             raw_data_size = 0;
 
-            pixel_data = (uint8_t*)realloc (pixel_data, 0);
+            //pixel_data = (uint8_t*)realloc(pixel_data, 0); //what is this shit?
+            free(pixel_data);
 
             initialized = false;
-
-            //return true;
         }
 
         //saves the image with given filename
@@ -532,7 +573,7 @@ namespace sbtmp{
             return true;
         }
 
-        //will load almost any crap, so be careful (very crashy)
+        // Might crash when trying to load a file that doesn't conform to *this* standard. Most errors are caught, but still.
         bool load(const char * filename){
             if(initialized)
                 return false;
@@ -553,7 +594,7 @@ namespace sbtmp{
 
             //check if file starts with "BM"
             in_image.read((char *)&bm_header, 2);
-            if(bm_header[0] != 'B' && bm_header[1] != 'M')
+            if(bm_header[0] != 'B' || bm_header[1] != 'M')
                 return false;
             
             //check if file size is correct
@@ -583,7 +624,7 @@ namespace sbtmp{
                 return false;
             in_image.ignore(4); //ignore Bl_RGB
 
-            //check if raw data size is correct and if  not correct it
+            //check if raw data size is correct and if not correct it
             in_image.read((char *)&raw_data_size, 4);
             if(raw_data_size != total_size_in_bytes - offset)
                 raw_data_size = total_size_in_bytes - offset;
