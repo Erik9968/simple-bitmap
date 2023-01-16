@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.41
+/* very simple bitmap library version exp 0.43
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
@@ -86,15 +86,22 @@
  * 0.41
  * - added destructor to prevent memory leak
  * 
+ * 0.42
+ * - added a blur function
+ * 
+ * 0.43
+ * - added/fixed floodfill function
+ * 
  * TODO:
- * - add blur function
  * - add function to load bitmap data from arrays
+ * - make a better blur function
  * - add more filters and resize functions (nearest neighbour | bilinear | bicubic)
  * - add character/string drawing function
  */
 
 
 #include <fstream>
+#include <stack>
 
 namespace sbtmp{
 
@@ -157,6 +164,15 @@ namespace sbtmp{
             return col;
         }
 
+        Color col_avg(Color col1, Color col2){
+            short red = 0, green = 0, blue = 0, alpha = 0;
+            red = (get_red(col1) + get_red(col2)) / 2;
+            green = (get_green(col1) + get_green(col2)) / 2;
+            blue = (get_blue(col1) + get_blue(col2)) / 2;
+            alpha = (get_alpha(col1) + get_alpha(col2)) / 2;
+            return set_col(red, green, blue, alpha);
+        }
+
     }
 
     class Bitmap{
@@ -167,11 +183,11 @@ namespace sbtmp{
             if(initialized)
                 return;
 
-            width = set_width;
-            height = set_height;
+            btmp_width = set_width;
+            btmp_height = set_height;
 
-            total_size_in_bytes = pixel_data_offset + height * width * 4;
-            raw_data_size = height * width * 4;
+            total_size_in_bytes = pixel_data_offset + btmp_height * btmp_width * 4;
+            raw_data_size = btmp_height * btmp_width * 4;
 
             //pixel_data = (uint8_t*)realloc (pixel_data, raw_data_size);
             pixel_data = (uint8_t*)calloc(raw_data_size, sizeof(uint8_t));
@@ -193,11 +209,11 @@ namespace sbtmp{
             if(initialized)
                 return;
 
-            width = set_width;
-            height = set_height;
+            btmp_width = set_width;
+            btmp_height = set_height;
 
-            total_size_in_bytes = pixel_data_offset + height * width * 4;
-            raw_data_size = height * width * 4;
+            total_size_in_bytes = pixel_data_offset + btmp_height * btmp_width * 4;
+            raw_data_size = btmp_height * btmp_width * 4;
 
             //pixel_data = (uint8_t*)realloc (pixel_data, raw_data_size);
             pixel_data = (uint8_t*)calloc(raw_data_size, sizeof(uint8_t));
@@ -207,12 +223,12 @@ namespace sbtmp{
 
         //return width of the image
         uint32_t get_width(){
-            return width;
+            return btmp_width;
         }
 
         //returns height of the image
         uint32_t get_height(){
-            return height;
+            return btmp_height;
         }
 
         //returns the entire file size including header 
@@ -227,7 +243,7 @@ namespace sbtmp{
 
         //set pixel at coords x_pos, y_pos to rgba value
         void set_pixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if (x_pos > width - 1 || y_pos > height - 1 || !initialized)
+            if (x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || !initialized)
                 return;
             pixel_data[get_index(x_pos, y_pos)+0] = blue;
             pixel_data[get_index(x_pos, y_pos)+1] = green;
@@ -242,7 +258,7 @@ namespace sbtmp{
 
         //draws line between two points
         void line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x1 < 0 || x1 > width - 1 || x2 < 0 || x2 > width - 1 || y1 < 0 || y1 > height - 1 || y2 < 0 || y2 > height - 1 || !initialized)
+            if(x1 < 0 || x1 > btmp_width - 1 || x2 < 0 || x2 > btmp_width - 1 || y1 < 0 || y1 > btmp_height - 1 || y2 < 0 || y2 > btmp_height - 1 || !initialized)
                 return;
             int32_t ax = x2 - x1, ay = y2 - y1;
             ax = (ax < 0) ? -ax : ax;
@@ -275,8 +291,8 @@ namespace sbtmp{
         void fill(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             if(!initialized)
                 return;
-            for(uint32_t i = 0; i < height; i++){
-                for(uint32_t j = 0; j < width; j++){
+            for(uint32_t i = 0; i < btmp_height; i++){
+                for(uint32_t j = 0; j < btmp_width; j++){
                     set_pixel(j, i, red, green, blue, alpha);
                 }
             }
@@ -287,51 +303,56 @@ namespace sbtmp{
             fill(color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
+        //sets an area of pixels, with the same color, to another color
+        //like the bucket in paint if that makes sense
+        void floodfill(uint32_t x_pos, uint32_t y_pos, color::Color col){
+            if(!initialized)
+                return;
+            
+            color::Color old_col = get_pixel(x_pos, y_pos); // first we get the color value of the specified pixel
 
-        //some failed floodfill functions (cause stack overflow)
+            std::stack<uint32_t> pixels_to_fill; // create a stack to store the pixel coordinates
+            pixels_to_fill.push(x_pos); // push current pixel coords into stack
+            pixels_to_fill.push(y_pos);
 
-        //floodfill like "bucket" in paint
-        // void floodfill(uint32_t x_pos, uint32_t y_pos, uint8_t old_red, uint8_t old_green, uint8_t old_blue, uint8_t new_red, uint8_t new_green, uint8_t new_blue){
-        //     if(x_pos > width - 1 || y_pos > height - 1 || !initialized)
-        //         return;
-        //     std::cout << x_pos << "\t" << y_pos << "\n";
-        //     if((get_pixel(x_pos, y_pos, 0) == old_blue && get_pixel(x_pos, y_pos, 1) == old_green && get_pixel(x_pos, y_pos, 2) == old_red) || !(get_pixel(x_pos, y_pos, 0) == new_blue && get_pixel(x_pos, y_pos, 1) == new_green && get_pixel(x_pos, y_pos, 2) == new_red)){
-        //         set_pixel(x_pos, y_pos, new_red, new_green, new_blue, get_pixel(x_pos, y_pos, 3));
-        //         floodfill(x_pos + 1, y_pos, old_red, old_green, old_blue, new_red, new_green, new_blue);
-        //         if(!(x_pos == 0))
-        //             floodfill(x_pos - 1, y_pos, old_red, old_green, old_blue, new_red, new_green, new_blue);
-        //         floodfill(x_pos, y_pos + 1, old_red, old_green, old_blue, new_red, new_green, new_blue);
-        //         if(!(y_pos == 0))
-        //             floodfill(x_pos, y_pos - 1, old_red, old_green, old_blue, new_red, new_green, new_blue);
-        //     }
-        // }
+            uint32_t x_buf = 0, y_buf = 0; // declare and initialize position buffers
 
-        // void floodfill(int32_t x_pos, int32_t y_pos, uint8_t old_red, uint8_t old_green, uint8_t old_blue, uint8_t new_red, uint8_t new_green, uint8_t new_blue){
-        //     if(x_pos < 0 || !(x_pos < width) || y_pos < 0 || !(y_pos < height))
-        //         return;
-        //     if(get_pixel(x_pos, y_pos, 0) != old_blue || get_pixel(x_pos, y_pos, 1) != old_green || get_pixel(x_pos, y_pos, 2) != old_red)
-        //         return;
-        //     if(get_pixel(x_pos, y_pos, 0) == new_blue && get_pixel(x_pos, y_pos, 1) == new_green && get_pixel(x_pos, y_pos, 2) == new_red)
-        //         return;
+            while(pixels_to_fill.size() > 0 && pixels_to_fill.size() < 100000000){ // while the stack isn't empty and doesnt have 100mil or more elements
+                // read pixel coords into buffers
+                x_buf = pixels_to_fill.top();
+                pixels_to_fill.pop();
+                y_buf = pixels_to_fill.top();
+                pixels_to_fill.pop();
 
+                if(get_pixel(x_buf, y_buf) == old_col){ // check if buffer has the original color
 
+                    //if yes then replace with new color
+                    set_pixel(x_buf, y_buf, col);
 
-        //     set_pixel(x_pos, y_pos, new_red, new_green, new_red, get_pixel(x_pos, y_pos, 3));
-
-        //     floodfill(x_pos + 1, y_pos, old_red, old_green, old_blue, new_red, new_green, new_blue);
-        //     floodfill(x_pos - 1, y_pos, old_red, old_green, old_blue, new_red, new_green, new_blue);
-        //     floodfill(x_pos, y_pos + 1, old_red, old_green, old_blue, new_red, new_green, new_blue);
-        //     floodfill(x_pos, y_pos - 1, old_red, old_green, old_blue, new_red, new_green, new_blue);
-        // }
-
-        //floodfill like "bucket" in paint
-        // void floodfill(uint32_t x_pos, uint32_t y_pos, color old_col, color new_col){
-        //     floodfill(x_pos, y_pos, old_col.get_red(), old_col.get_green(), old_col.get_blue(), new_col.get_red(), new_col.get_green(), new_col.get_blue());
-        // }
+                    //push neighboring pixels into the stack but check if they are out of bounds
+                    if(x_buf > 0){
+                        pixels_to_fill.push(x_buf - 1);
+                        pixels_to_fill.push(y_buf);
+                    }
+                    if(x_buf < btmp_width - 1){
+                        pixels_to_fill.push(x_buf + 1);
+                        pixels_to_fill.push(y_buf);
+                    }
+                    if(y_buf > 0){
+                        pixels_to_fill.push(x_buf);
+                        pixels_to_fill.push(y_buf - 1);
+                    }
+                    if(y_buf < btmp_height - 1){
+                        pixels_to_fill.push(x_buf);
+                        pixels_to_fill.push(y_buf + 1);
+                    }
+                }
+            }
+        }
 
         //draws a rectangle of given size
         void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x1 > x2 || y1 > y2 || x1 > width - 1 || y1 > height - 1 || x2 > width - 1 || y2 > height - 1 || !initialized)
+            if(x1 > x2 || y1 > y2 || x1 > btmp_width - 1 || y1 > btmp_height - 1 || x2 > btmp_width - 1 || y2 > btmp_height - 1 || !initialized)
                 return;
             for(uint32_t i = x1; i < x2; i++){
                 for(uint32_t j = y1; j < y2; j++){
@@ -351,7 +372,7 @@ namespace sbtmp{
                 return;
             for(int32_t i = -radius; i < radius; i++){
                 for(int32_t j = -radius; j < radius; j++){
-                    if(i * i + j * j <= radius * radius && x_pos + i < width && x_pos + i >= 0 && y_pos + j < height && y_pos + j >= 0){
+                    if(i * i + j * j <= radius * radius && x_pos + i < btmp_width && x_pos + i >= 0 && y_pos + j < btmp_height && y_pos + j >= 0){
                         set_pixel(x_pos + i, y_pos + j, red, green, blue, alpha);
                     }
                 }
@@ -376,7 +397,7 @@ namespace sbtmp{
 
         //converts the image to black and white in the specified area
         void convert_bw(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2){
-            if(x1 > width || y1 > height || x2 > width || y2 > height || !initialized)
+            if(x1 > btmp_width || y1 > btmp_height || x2 > btmp_width || y2 > btmp_height || !initialized)
                 return;
             char bw_color;
             for(uint32_t i = x1; i < x2; i++){
@@ -391,7 +412,7 @@ namespace sbtmp{
 
         //inverts the rgb values of the image in the specified area
         void rgb_invert(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2){
-            if(x1 > width || y1 > height || x2 > width || y2 > height || !initialized)
+            if(x1 > btmp_width || y1 > btmp_height || x2 > btmp_width || y2 > btmp_height || !initialized)
                 return;
             for(uint32_t i = x1; i < x2; i++){
                 for(uint32_t j = y1; j < y2; j++){
@@ -407,13 +428,13 @@ namespace sbtmp{
         void flip_vertical(){
             if(!initialized)
                 return;
-            for(uint32_t i = 0; i < height; i++){
-                for(uint32_t j = 0; j < width / 2; j++){
+            for(uint32_t i = 0; i < btmp_height; i++){
+                for(uint32_t j = 0; j < btmp_width / 2; j++){
                     //this is magic
-                    std::swap(pixel_data[get_index(i, j)], pixel_data[get_index(i, width - j - 1)]);
-                    std::swap(pixel_data[get_index(i, j)+1], pixel_data[get_index(i, width - j - 1)+1]);
-                    std::swap(pixel_data[get_index(i, j)+2], pixel_data[get_index(i, width - j - 1)+2]);
-                    std::swap(pixel_data[get_index(i, j)+3], pixel_data[get_index(i, width - j - 1)+3]);
+                    std::swap(pixel_data[get_index(i, j)], pixel_data[get_index(i, btmp_width - j - 1)]);
+                    std::swap(pixel_data[get_index(i, j)+1], pixel_data[get_index(i, btmp_width - j - 1)+1]);
+                    std::swap(pixel_data[get_index(i, j)+2], pixel_data[get_index(i, btmp_width - j - 1)+2]);
+                    std::swap(pixel_data[get_index(i, j)+3], pixel_data[get_index(i, btmp_width - j - 1)+3]);
                 }
             }
         }
@@ -422,25 +443,43 @@ namespace sbtmp{
         void flip_horizontal(){
             if(!initialized)
                 return;
-            for(uint32_t i = 0; i < height / 2; i++){
-                for(uint32_t j = 0; j < width; j++){
+            for(uint32_t i = 0; i < btmp_height / 2; i++){
+                for(uint32_t j = 0; j < btmp_width; j++){
                     //this is magic too
-                    std::swap(pixel_data[get_index(i, j)], pixel_data[get_index(height - i - 1, j)]);
-                    std::swap(pixel_data[get_index(i, j)+1], pixel_data[get_index(height - i - 1, j)+1]);
-                    std::swap(pixel_data[get_index(i, j)+2], pixel_data[get_index(height - i - 1, j)+2]);
-                    std::swap(pixel_data[get_index(i, j)+3], pixel_data[get_index(height - i - 1, j)+3]);
+                    std::swap(pixel_data[get_index(i, j)], pixel_data[get_index(btmp_height - i - 1, j)]);
+                    std::swap(pixel_data[get_index(i, j)+1], pixel_data[get_index(btmp_height - i - 1, j)+1]);
+                    std::swap(pixel_data[get_index(i, j)+2], pixel_data[get_index(btmp_height - i - 1, j)+2]);
+                    std::swap(pixel_data[get_index(i, j)+3], pixel_data[get_index(btmp_height - i - 1, j)+3]);
                 }
             }
         }
 
+        //this is a distunging and bad blur function!!!
+        void blur(){
+            if(!initialized)
+                return;
+            //Bitmap buff(width, height); //not needed yet
+            for(uint32_t y = 1; y < btmp_height; y++){
+                for(uint32_t x = 0; x < btmp_width - 1; x++){
+                    set_pixel(x, y, color::col_avg(get_pixel(x, y), get_pixel(x + 1, y)));
+                    set_pixel(x, y, color::col_avg(get_pixel(x, y), get_pixel(x, y - 1)));
+                }
+            }
+            // for(uint32_t y = btmp_height - 1; y > 1; y--){
+            //     for(uint32_t x = btmp_width - 1; x > 1; x--){
+            //         set_pixel(x, y, color::col_avg(get_pixel(x, y), get_pixel(x, y - 1)));
+            //     }
+            // }
+        }
+
         #ifdef sbtmp_experimental
-        void merge(bitmap& other){
-            if(other.get_width() != width || other.get_height() != height){
+        void merge(Bitmap& other){
+            if(other.get_width() != btmp_width || other.get_height() != btmp_height){
                 return;
             }
 
-            for(uint32_t i = 0; i < width; i++){
-                for(uint32_t j = 0; j < height; j++){
+            for(uint32_t i = 0; i < btmp_width; i++){
+                for(uint32_t j = 0; j < btmp_height; j++){
                     if(other.get_pixel(i, j, 1) != 0 && other.get_pixel(i, j, 2) != 0 && other.get_pixel(i, j, 3) != 0){
                         set_pixel(i, j, other.get_pixel(i, j, 1), other.get_pixel(i, j, 2), other.get_pixel(i, j, 3), other.get_pixel(i, j, 0));
                     }
@@ -451,7 +490,7 @@ namespace sbtmp{
 
         //adds rgba value to specified pixel
         void addtpixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x_pos > width - 1 || y_pos > height - 1 || !initialized)
+            if(x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || !initialized)
                 return;
             pixel_data[get_index(x_pos, y_pos)+0] += blue;
             pixel_data[get_index(x_pos, y_pos)+1] += green;
@@ -465,7 +504,7 @@ namespace sbtmp{
 
         //subtracts rgba value from specified pixel
         void subfpixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x_pos > width - 1 || y_pos > height - 1 || !initialized)
+            if(x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || !initialized)
                 return;
             pixel_data[get_index(x_pos, y_pos)+0] -= blue;
             pixel_data[get_index(x_pos, y_pos)+1] -= green;
@@ -492,18 +531,18 @@ namespace sbtmp{
         void resize(uint32_t set_width, uint32_t set_height){
             if(!initialized)
                 return;
-            if(set_width == width && set_height == height)
+            if(set_width == btmp_width && set_height == btmp_height) // args are the same size as image
                 return;
-            if(set_width < width || set_height < height)
+            if(set_width < btmp_width || set_height < btmp_height) // if args are smaller
                 return;
 
-            width = set_width;
-            height = set_height;
+            btmp_width = set_width;
+            btmp_height = set_height;
 
-            total_size_in_bytes = pixel_data_offset + height * width * 4;
-            raw_data_size = height * width * 4;
+            total_size_in_bytes = pixel_data_offset + btmp_height * btmp_width * 4; // recalculate size attribs
+            raw_data_size = btmp_height * btmp_width * 4;
 
-            pixel_data = (uint8_t*)realloc(pixel_data, raw_data_size);
+            pixel_data = (uint8_t*)realloc(pixel_data, raw_data_size); // realloc bitmap data
         }
 
         //clears the image
@@ -520,14 +559,16 @@ namespace sbtmp{
             if(!initialized)
                 return;
 
-            width = 0;
-            height = 0;
+            //reset all attribs
+            btmp_width = 0;
+            btmp_height = 0;
             total_size_in_bytes = 0;
             raw_data_size = 0;
 
             //pixel_data = (uint8_t*)realloc(pixel_data, 0); //what is this shit?
-            free(pixel_data);
+            free(pixel_data); // much better
 
+            // image is not initialized anymore and can be reinitialized
             initialized = false;
         }
 
@@ -546,8 +587,8 @@ namespace sbtmp{
             out_image.write((char *)&unused, 2);
             out_image.write((char *)&pixel_data_offset, 4);
             out_image.write((char *)&DIB_header_size, 4);
-            out_image.write((char *)&width, 4);
-            out_image.write((char *)&height, 4);
+            out_image.write((char *)&btmp_width, 4);
+            out_image.write((char *)&btmp_height, 4);
             out_image.write((char *)&color_planes, 2);
             out_image.write((char *)&bits_per_pixel, 2);
             out_image.write((char *)&Bl_RGB, 4);
@@ -573,6 +614,7 @@ namespace sbtmp{
             return true;
         }
 
+        // Load *.bmp images
         // Might crash when trying to load a file that doesn't conform to *this* standard. Most errors are caught, but still.
         bool load(const char * filename){
             if(initialized)
@@ -613,10 +655,10 @@ namespace sbtmp{
             in_image.read((char *)&offset, 4);
             //std::cout << offset << '\n';
             in_image.ignore(4); // ignore dib header size
-            in_image.read((char *)&width, 4);
-            //std::cout << width << '\n';
-            in_image.read((char *)&height, 4);
-            //std::cout << height << '\n';
+            in_image.read((char *)&btmp_width, 4);
+            //std::cout << btmp_width << '\n';
+            in_image.read((char *)&btmp_height, 4);
+            //std::cout << btmp_height << '\n';
             in_image.ignore(2); //ignore color planes
             in_image.read((char *)&b_per_pix, 2);
             //std::cout << b_per_pix << '\n';
@@ -649,12 +691,12 @@ namespace sbtmp{
             return true;
         }
 
-        #ifdef sbtmp_experimental
-        //returns pointer (maybe?)
+        //returns pointer (maybe? -> Yes it does! 16.01.2022)
+        //Be carefull with this function
+        //Never free it's data!!
         uint8_t * ptr(){
             return pixel_data;
         }
-        #endif
 
         //if std::string is included, the save function can be called with a string instead of a char array
         #if defined(_GLIBCXX_STRING_) //gnu gcc compiler (linux)
@@ -679,7 +721,7 @@ namespace sbtmp{
         //DIB header
         //const uint32_t DIB_header_size = 40;
         const uint32_t DIB_header_size = 108;
-        uint32_t width, height;
+        uint32_t btmp_width, btmp_height;
         const uint16_t color_planes = 1;
         const uint16_t bits_per_pixel = 32;
         const uint32_t Bl_RGB = 3;
@@ -704,7 +746,7 @@ namespace sbtmp{
 
         //function used to get the array index of any pixel
         uint64_t get_index(uint32_t x_pos, uint32_t y_pos){
-            return ((width - y_pos - 1) * width + x_pos) * 4; //y_pos is inverted because of the way the image is stored
+            return ((btmp_width - y_pos - 1) * btmp_width + x_pos) * 4; //y_pos is inverted because of the way the image is stored
         }
     };
 }
