@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.44
+/* very simple bitmap library version exp 0.45
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
@@ -95,9 +95,14 @@
  * 0.44
  * - improved the blur function
  * 
+ * 0.45
+ * - (almost) all function don't use/accept a alpha value anymore
+ *      - use *fn*_a version of the function to use alpha
+ * - floodfill now accepts rgba/rgb values instead of just the "Color" type
+ * - crossed the 1000 lines mark. Yay
+ * 
  * TODO:
  * - add function to load bitmap data from arrays
- * - make an even better blur function
  * - add more filters and resize functions (nearest neighbour | bilinear | bicubic)
  * - add character/string drawing function
  */
@@ -245,7 +250,7 @@ namespace sbtmp{
         }
 
         //set pixel at coords x_pos, y_pos to rgba value
-        void set_pixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+        void set_pixel_a(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             if (x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || !initialized)
                 return;
             pixel_data[get_index(x_pos, y_pos)+0] = blue;
@@ -254,13 +259,35 @@ namespace sbtmp{
             pixel_data[get_index(x_pos, y_pos)+3] = alpha;
         }
 
+        //set pixel at coords x_pos, y_pos to rgb value
+        //no alpha
+        void set_pixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue){
+            if (x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || !initialized)
+                return;
+            pixel_data[get_index(x_pos, y_pos)+0] = blue;
+            pixel_data[get_index(x_pos, y_pos)+1] = green;
+            pixel_data[get_index(x_pos, y_pos)+2] = red;
+            pixel_data[get_index(x_pos, y_pos)+3] = 255;
+        }
+
         //set pixel at coords x_pos, y_pos to rgba value
+        void set_pixel_a(uint32_t x_pos, uint32_t y_pos, color::Color val){
+            set_pixel_a(x_pos, y_pos, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //set pixel at coords x_pos, y_pos to rgb value
+        //no alpha
         void set_pixel(uint32_t x_pos, uint32_t y_pos, color::Color val){
-            set_pixel(x_pos, y_pos, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+            set_pixel(x_pos, y_pos, color::get_red(val), color::get_green(val), color::get_blue(val));
+        }
+
+        //change the transparency of a pixel
+        void set_alpha(uint32_t x_pos, uint32_t y_pos, uint8_t alpha){
+            pixel_data[get_index(x_pos, y_pos)+3] = alpha;
         }
 
         //draws line between two points
-        void line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+        void line_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             if(x1 < 0 || x1 > btmp_width - 1 || x2 < 0 || x2 > btmp_width - 1 || y1 < 0 || y1 > btmp_height - 1 || y2 < 0 || y2 > btmp_height - 1 || !initialized)
                 return;
             int32_t ax = x2 - x1, ay = y2 - y1;
@@ -271,7 +298,7 @@ namespace sbtmp{
             int32_t err = dx + dy, e2;
 
             while (true) {
-                set_pixel(x1, y1, red, green, blue, alpha);
+                set_pixel_a(x1, y1, red, green, blue, alpha);
                 if (x1 == x2 && y1 == y2) break;
                 e2 = 2 * err;
                 if (e2 > dy){
@@ -286,33 +313,88 @@ namespace sbtmp{
         }
 
         //draws line between two points
+        //no alpha
+        void line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t red, uint8_t green, uint8_t blue){
+            if(x1 < 0 || x1 > btmp_width - 1 || x2 < 0 || x2 > btmp_width - 1 || y1 < 0 || y1 > btmp_height - 1 || y2 < 0 || y2 > btmp_height - 1 || !initialized)
+                return;
+            int32_t ax = x2 - x1, ay = y2 - y1;
+            ax = (ax < 0) ? -ax : ax;
+            ay = (ay < 0) ? ay : -ay;
+            int32_t dx = ax, sx = x1 < x2 ? 1 : -1;
+            int32_t dy = ay, sy = y1 < y2 ? 1 : -1;
+            int32_t err = dx + dy, e2;
+
+            while (true) {
+                set_pixel(x1, y1, red, green, blue);
+                if (x1 == x2 && y1 == y2) break;
+                e2 = 2 * err;
+                if (e2 > dy){
+                    err += dy;
+                    x1 += sx;
+                }
+                if (e2 < dx){
+                    err += dx;
+                    y1 += sy;
+                }
+            }
+        }
+
+        //draws line between two points
+        void line_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, color::Color val){
+            line_a(x1, y1, x2, y2, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //draws line between two points
+        //no alpha
         void line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, color::Color val){
-            line(x1, y1, x2, y2, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+            line(x1, y1, x2, y2, color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
         //sets every pixel of the image to rgba value
-        void fill(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+        void fill_a(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             if(!initialized)
                 return;
             for(uint32_t i = 0; i < btmp_height; i++){
                 for(uint32_t j = 0; j < btmp_width; j++){
-                    set_pixel(j, i, red, green, blue, alpha);
+                    set_pixel_a(j, i, red, green, blue, alpha);
+                }
+            }
+        }
+
+        //sets every pixel of the image to rgb value
+        //no alpha
+        void fill(uint8_t red, uint8_t green, uint8_t blue){
+            if(!initialized)
+                return;
+            for(uint32_t i = 0; i < btmp_height; i++){
+                for(uint32_t j = 0; j < btmp_width; j++){
+                    set_pixel(j, i, red, green, blue);
                 }
             }
         }
 
         //sets every pixel of the image to rgba value
+        void fill_a(color::Color val){
+            fill_a(color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //sets every pixel of the image to rgb value
+        //no alpha
         void fill(color::Color val){
-            fill(color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+            fill(color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
         //sets an area of pixels, with the same color, to another color
         //like the bucket in paint if that makes sense
-        void floodfill(uint32_t x_pos, uint32_t y_pos, color::Color col){
+        void floodfill_a(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             if(!initialized)
                 return;
-            
-            color::Color old_col = get_pixel(x_pos, y_pos); // first we get the color value of the specified pixel
+
+            uint8_t  // first we get the color value of the specified pixel
+                old_red = get_pixel(x_pos, y_pos, 2),
+                old_green = get_pixel(x_pos, y_pos, 1),
+                old_blue = get_pixel(x_pos, y_pos, 0),
+                old_alpha = get_pixel(x_pos, y_pos, 3);
 
             std::stack<uint32_t> pixels_to_fill; // create a stack to store the pixel coordinates
             pixels_to_fill.push(x_pos); // push current pixel coords into stack
@@ -327,10 +409,13 @@ namespace sbtmp{
                 y_buf = pixels_to_fill.top();
                 pixels_to_fill.pop();
 
-                if(get_pixel(x_buf, y_buf) == old_col){ // check if buffer has the original color
+                if(get_pixel(x_buf, y_buf, 2) == old_red &&
+                   get_pixel(x_buf, y_buf, 1) == old_green &&
+                   get_pixel(x_buf, y_buf, 0) == old_blue &&
+                   get_pixel(x_buf, y_buf, 3) == old_alpha){ // check if buffer has the original color
 
                     //if yes then replace with new color
-                    set_pixel(x_buf, y_buf, col);
+                    set_pixel_a(x_buf, y_buf, red, green, blue, alpha);
 
                     //push neighboring pixels into the stack but check if they are out of bounds
                     if(x_buf > 0){
@@ -353,49 +438,167 @@ namespace sbtmp{
             }
         }
 
-        //draws a rectangle of given size
-        void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x1 > x2 || y1 > y2 || x1 > btmp_width - 1 || y1 > btmp_height - 1 || x2 > btmp_width - 1 || y2 > btmp_height - 1 || !initialized)
+        //sets an area of pixels, with the same color, to another color
+        //like the bucket in paint if that makes sense
+        //no alpha value
+        void floodfill(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue){
+            if(!initialized)
                 return;
-            for(uint32_t i = x1; i < x2; i++){
-                for(uint32_t j = y1; j < y2; j++){
-                    set_pixel(i, j, red, green, blue, alpha);
-                }
-            }
-        }
 
-        //draws a rectangle of given size
-        void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, color::Color val){
-            rectangle(x1, y1, x2, y2, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
-        }
+            uint8_t  // first we get the color value of the specified pixel
+                old_red = get_pixel(x_pos, y_pos, 2),
+                old_green = get_pixel(x_pos, y_pos, 1),
+                old_blue = get_pixel(x_pos, y_pos, 0);
 
-        //draws a circle of given size
-        void circle(int32_t x_pos, int32_t y_pos, int32_t radius, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(radius < 1 || !initialized)
-                return;
-            for(int32_t i = -radius; i < radius; i++){
-                for(int32_t j = -radius; j < radius; j++){
-                    if(i * i + j * j <= radius * radius && x_pos + i < btmp_width && x_pos + i >= 0 && y_pos + j < btmp_height && y_pos + j >= 0){
-                        set_pixel(x_pos + i, y_pos + j, red, green, blue, alpha);
+            std::stack<uint32_t> pixels_to_fill; // create a stack to store the pixel coordinates
+            pixels_to_fill.push(x_pos); // push current pixel coords into stack
+            pixels_to_fill.push(y_pos);
+
+            uint32_t x_buf = 0, y_buf = 0; // declare and initialize position buffers
+
+            while(pixels_to_fill.size() > 0 && pixels_to_fill.size() < 100000000){ // while the stack isn't empty and doesnt have 100mil or more elements
+                // read pixel coords into buffers
+                x_buf = pixels_to_fill.top();
+                pixels_to_fill.pop();
+                y_buf = pixels_to_fill.top();
+                pixels_to_fill.pop();
+
+                if(get_pixel(x_buf, y_buf, 2) == old_red &&
+                   get_pixel(x_buf, y_buf, 1) == old_green &&
+                   get_pixel(x_buf, y_buf, 0) == old_blue){ // check if buffer has the original color
+
+                    //if yes then replace with new color
+                    set_pixel(x_buf, y_buf, red, green, blue);
+
+                    //push neighboring pixels into the stack but check if they are out of bounds
+                    if(x_buf > 0){
+                        pixels_to_fill.push(x_buf - 1);
+                        pixels_to_fill.push(y_buf);
+                    }
+                    if(x_buf < btmp_width - 1){
+                        pixels_to_fill.push(x_buf + 1);
+                        pixels_to_fill.push(y_buf);
+                    }
+                    if(y_buf > 0){
+                        pixels_to_fill.push(x_buf);
+                        pixels_to_fill.push(y_buf - 1);
+                    }
+                    if(y_buf < btmp_height - 1){
+                        pixels_to_fill.push(x_buf);
+                        pixels_to_fill.push(y_buf + 1);
                     }
                 }
             }
         }
 
+        //sets an area of pixels, with the same color, to another color
+        //like the bucket in paint if that makes sense
+        void floodfill_a(uint32_t x_pos, uint32_t y_pos, color::Color col){
+            floodfill_a(x_pos, y_pos, color::get_red(col), color::get_green(col), color::get_blue(col), color::get_alpha(col));
+        }
+
+        //sets an area of pixels, with the same color, to another color
+        //like the bucket in paint if that makes sense
+        //no alpha value
+        void floodfill(uint32_t x_pos, uint32_t y_pos, color::Color col){
+            floodfill(x_pos, y_pos, color::get_red(col), color::get_green(col), color::get_blue(col));
+        }
+
+        //draws a rectangle of given size
+        void rectangle_a(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(x1 > x2 || y1 > y2 || x1 > btmp_width - 1 || y1 > btmp_height - 1 || x2 > btmp_width - 1 || y2 > btmp_height - 1 || !initialized)
+                return;
+            for(uint32_t i = x1; i < x2; i++){
+                for(uint32_t j = y1; j < y2; j++){
+                    set_pixel_a(i, j, red, green, blue, alpha);
+                }
+            }
+        }
+
+        //draws a rectangle of given size
+        //no alpha
+        void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint8_t red, uint8_t green, uint8_t blue){
+            if(x1 > x2 || y1 > y2 || x1 > btmp_width - 1 || y1 > btmp_height - 1 || x2 > btmp_width - 1 || y2 > btmp_height - 1 || !initialized)
+                return;
+            for(uint32_t i = x1; i < x2; i++){
+                for(uint32_t j = y1; j < y2; j++){
+                    set_pixel(i, j, red, green, blue);
+                }
+            }
+        }
+
+        //draws a rectangle of given size
+        void rectangle_a(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, color::Color val){
+            rectangle_a(x1, y1, x2, y2, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //draws a rectangle of given size
+        void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, color::Color val){
+            rectangle(x1, y1, x2, y2, color::get_red(val), color::get_green(val), color::get_blue(val));
+        }
+
+        //draws a circle of given size
+        void circle_a(int32_t x_pos, int32_t y_pos, int32_t radius, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(radius < 1 || !initialized)
+                return;
+            for(int32_t i = -radius; i < radius; i++){
+                for(int32_t j = -radius; j < radius; j++){
+                    if(i * i + j * j <= radius * radius && x_pos + i < btmp_width && x_pos + i >= 0 && y_pos + j < btmp_height && y_pos + j >= 0){
+                        set_pixel_a(x_pos + i, y_pos + j, red, green, blue, alpha);
+                    }
+                }
+            }
+        }
+
+        //draws a circle of given size
+        //no alpha
+        void circle(int32_t x_pos, int32_t y_pos, int32_t radius, uint8_t red, uint8_t green, uint8_t blue){
+            if(radius < 1 || !initialized)
+                return;
+            for(int32_t i = -radius; i < radius; i++){
+                for(int32_t j = -radius; j < radius; j++){
+                    if(i * i + j * j <= radius * radius && x_pos + i < btmp_width && x_pos + i >= 0 && y_pos + j < btmp_height && y_pos + j >= 0){
+                        set_pixel(x_pos + i, y_pos + j, red, green, blue);
+                    }
+                }
+            }
+        }
+
+        //draws a circle of given size
+        void circle_a(uint32_t x_pos, uint32_t y_pos, int32_t radius, color::Color val){
+            circle_a(x_pos, y_pos, radius, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //draws a circle of given size
+        //no alpha
         void circle(uint32_t x_pos, uint32_t y_pos, int32_t radius, color::Color val){
-            circle(x_pos, y_pos, radius, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+            circle(x_pos, y_pos, radius, color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
         //draw triangle by connecting three points with lines
-        void triangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            line(x1, y1, x2, y2, red, green, blue, alpha);
-            line(x2, y2, x3, y3, red, green, blue, alpha);
-            line(x3, y3, x1, y1, red, green, blue, alpha);
+        void triangle_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            line_a(x1, y1, x2, y2, red, green, blue, alpha);
+            line_a(x2, y2, x3, y3, red, green, blue, alpha);
+            line_a(x3, y3, x1, y1, red, green, blue, alpha);
         }
 
         //draw triangle by connecting three points with lines
+        //no alpha
+        void triangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, uint8_t red, uint8_t green, uint8_t blue){
+            line(x1, y1, x2, y2, red, green, blue);
+            line(x2, y2, x3, y3, red, green, blue);
+            line(x3, y3, x1, y1, red, green, blue);
+        }
+
+        //draw triangle by connecting three points with lines
+        void triangle_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color::Color val){
+            triangle_a(x1, y1, x2, y2, x3, y3, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //draw triangle by connecting three points with lines
+        //no alpha
         void triangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color::Color val){
-            triangle(x1, y1, x2, y2, x3, y3, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+            triangle(x1, y1, x2, y2, x3, y3, color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
         //converts the image to black and white in the specified area
@@ -422,6 +625,21 @@ namespace sbtmp{
                     pixel_data[get_index(i, j)+0] = 255 - pixel_data[get_index(i, j)+0];
                     pixel_data[get_index(i, j)+1] = 255 - pixel_data[get_index(i, j)+1];
                     pixel_data[get_index(i, j)+2] = 255 - pixel_data[get_index(i, j)+2];
+                }
+            }
+            return;
+        }
+
+        //inverts the rgba values of the image in the specified area
+        void rgba_invert(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2){
+            if(x1 > btmp_width || y1 > btmp_height || x2 > btmp_width || y2 > btmp_height || !initialized)
+                return;
+            for(uint32_t i = x1; i < x2; i++){
+                for(uint32_t j = y1; j < y2; j++){
+                    pixel_data[get_index(i, j)+0] = 255 - pixel_data[get_index(i, j)+0];
+                    pixel_data[get_index(i, j)+1] = 255 - pixel_data[get_index(i, j)+1];
+                    pixel_data[get_index(i, j)+2] = 255 - pixel_data[get_index(i, j)+2];
+                    pixel_data[get_index(i, j)+3] = 255 - pixel_data[get_index(i, j)+3];
                 }
             }
             return;
@@ -458,28 +676,89 @@ namespace sbtmp{
         }
 
         //this is a distunging and bad blur function!!!
-        void blur(){
+        void blur_a(){
             if(!initialized)
                 return;
+            
+            short red_buf, green_buf, blue_buf, alpha_buf;
             //Bitmap buff(width, height); //not needed yet
             for(uint32_t y = 1; y < btmp_height - 1; y++){
                 for(uint32_t x = 1; x < btmp_width - 1; x++){
-                    set_pixel(x, y, // set the pixel to the average of all 8 sourrounding pixels
-                    color::col_avg( // avg of all the avgs
-                        color::col_avg( // avg of the of the pixels next to the current pixel
-                            color::col_avg( // avg of the pixels left and right to the current pixel
-                                get_pixel(x - 1, y), 
-                                get_pixel(x + 1, y)), 
-                                color::col_avg( // avg of the pixels over and below the current pixel
-                                    get_pixel(x, y - 1), 
-                                    get_pixel(x, y + 1))), 
-                                    color::col_avg( // avg of the pixels in the corners of the current pixel
-                                        color::col_avg( // avg of the higher and lower right corner pixels
-                                            get_pixel(x + 1, y - 1), 
-                                            get_pixel(x + 1, y + 1)), 
-                                            color::col_avg( // avg of the higher and lower left corner pixels
-                                                get_pixel(x - 1, y - 1), 
-                                                get_pixel(x - 1, y + 1))))); // this looks like a mess, because it is, but it works
+                    //oh boy is this baaaaaaad
+                    red_buf   = get_pixel(x + 1, y, 2) + 
+                                get_pixel(x + 1, y - 1, 2) +
+                                get_pixel(x, y - 1, 2) +
+                                get_pixel(x - 1, y - 1, 2) +
+                                get_pixel(x - 1, y, 2) +
+                                get_pixel(x - 1, y + 1, 2) +
+                                get_pixel(x, y + 1, 2) +
+                                get_pixel(x + 1, y + 1, 2);
+                    green_buf = get_pixel(x + 1, y, 1) +
+                                get_pixel(x + 1, y - 1, 1) +
+                                get_pixel(x, y - 1, 1) +
+                                get_pixel(x - 1, y - 1, 1) +
+                                get_pixel(x - 1, y, 1) +
+                                get_pixel(x - 1, y + 1, 1) +
+                                get_pixel(x, y + 1, 1) +
+                                get_pixel(x + 1, y + 1, 1);
+                    blue_buf  = get_pixel(x + 1, y, 0) +
+                                get_pixel(x + 1, y - 1, 0) +
+                                get_pixel(x, y - 1, 0) +
+                                get_pixel(x - 1, y - 1, 0) +
+                                get_pixel(x - 1, y, 0) +
+                                get_pixel(x - 1, y + 1, 0) +
+                                get_pixel(x, y + 1, 0) +
+                                get_pixel(x + 1, y + 1, 0);
+                    alpha_buf = get_pixel(x + 1, y, 3) +
+                                get_pixel(x + 1, y - 1, 3) +
+                                get_pixel(x, y - 1, 3) +
+                                get_pixel(x - 1, y - 1, 3) +
+                                get_pixel(x - 1, y, 3) +
+                                get_pixel(x - 1, y + 1, 3) +
+                                get_pixel(x, y + 1, 3) +
+                                get_pixel(x + 1, y + 1, 3);
+
+                    set_pixel_a(x, y, red_buf/8, green_buf/8, blue_buf/8, alpha_buf/8);
+                }
+            }
+        }
+
+        //this is a distunging and bad blur function!!!
+        void blur(){
+            if(!initialized)
+                return;
+            
+            short red_buf, green_buf, blue_buf;
+            //Bitmap buff(width, height); //not needed yet
+            for(uint32_t y = 1; y < btmp_height - 1; y++){
+                for(uint32_t x = 1; x < btmp_width - 1; x++){
+                    //oh boy is this baaaaaaad
+                    red_buf   = get_pixel(x + 1, y, 2) + 
+                                get_pixel(x + 1, y - 1, 2) +
+                                get_pixel(x, y - 1, 2) +
+                                get_pixel(x - 1, y - 1, 2) +
+                                get_pixel(x - 1, y, 2) +
+                                get_pixel(x - 1, y + 1, 2) +
+                                get_pixel(x, y + 1, 2) +
+                                get_pixel(x + 1, y + 1, 2);
+                    green_buf = get_pixel(x + 1, y, 1) +
+                                get_pixel(x + 1, y - 1, 1) +
+                                get_pixel(x, y - 1, 1) +
+                                get_pixel(x - 1, y - 1, 1) +
+                                get_pixel(x - 1, y, 1) +
+                                get_pixel(x - 1, y + 1, 1) +
+                                get_pixel(x, y + 1, 1) +
+                                get_pixel(x + 1, y + 1, 1);
+                    blue_buf  = get_pixel(x + 1, y, 0) +
+                                get_pixel(x + 1, y - 1, 0) +
+                                get_pixel(x, y - 1, 0) +
+                                get_pixel(x - 1, y - 1, 0) +
+                                get_pixel(x - 1, y, 0) +
+                                get_pixel(x - 1, y + 1, 0) +
+                                get_pixel(x, y + 1, 0) +
+                                get_pixel(x + 1, y + 1, 0);
+
+                    set_pixel(x, y, red_buf/8, green_buf/8, blue_buf/8);
                 }
             }
         }
