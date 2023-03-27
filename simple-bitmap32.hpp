@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.45
+/* very simple bitmap library version exp 0.47
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
