@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.47
+/* very simple bitmap library version exp 0.45
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
@@ -53,7 +53,7 @@
  * - Fixed flip_vertical and flip_horizontal
  * 
  * 0.34:
- * - Fixed header bug that coused transparent parts to be not transparent
+ * - Fixed header bug that caused transparent parts to be not transparent
  * 
  * 0.35:
  * - Added color datatype (no real use yet)
@@ -108,12 +108,13 @@
  * 0.47
  * - added a copy constructor
  * 
+ * 0.48
+ * - added simple char/string drawing function (only capital letters)
+ * 
  * TODO:
  * - add function to load bitmap data from arrays
  * - add more filters and resize functions (nearest neighbour | bilinear | bicubic)
- * - add character/string drawing function
  */
-
 
 #include <fstream>
 #include <stack>
@@ -189,6 +190,340 @@ namespace sbtmp{
             return set_col(red, green, blue, alpha);
         }
 
+    }
+
+    namespace chars{
+
+        typedef char Charbtmp[8];
+
+        constexpr Charbtmp A = {
+            0x04,
+            0x0A,
+            0x11,
+            0x11,
+            0x1F,
+            0x11,
+            0x11,
+            0x11
+        };
+
+        constexpr Charbtmp B = {
+            0x1E,
+            0x11,
+            0x11,
+            0x1E,
+            0x11,
+            0x11,
+            0x11,
+            0x1E
+        };
+
+        constexpr Charbtmp C = {
+            0x0E,
+            0x11,
+            0x10,
+            0x10,
+            0x10,
+            0x10,
+            0x11,
+            0x0E
+        };
+
+        constexpr Charbtmp D = {
+            0x1C,
+            0x12,
+            0x11,
+            0x11,
+            0x11,
+            0x11,
+            0x12,
+            0x1C
+        };
+
+        constexpr Charbtmp E = {
+            0x1F,
+            0x10,
+            0x10,
+            0x1E,
+            0x10,
+            0x10,
+            0x10,
+            0x1F
+        };
+
+        constexpr Charbtmp F = {
+            0x1F,
+            0x10,
+            0x10,
+            0x1E,
+            0x10,
+            0x10,
+            0x10,
+            0x10
+        };
+
+        constexpr Charbtmp G = {
+            0x0E,
+            0x11,
+            0x11,
+            0x10,
+            0x12,
+            0x11,
+            0x11,
+            0x0
+        };
+
+        constexpr Charbtmp H = {
+            0x11,
+            0x11,
+            0x11,
+            0x1F,
+            0x11,
+            0x11,
+            0x11,
+            0x11
+        };
+
+        constexpr Charbtmp I = {
+            0x0E,
+            0x04,
+            0x04,
+            0x04,
+            0x04,
+            0x04,
+            0x04,
+            0x0E
+        };
+
+        constexpr Charbtmp J = {
+            0x1F,
+            0x01,
+            0x01,
+            0x01,
+            0x01,
+            0x11,
+            0x11,
+            0x0E
+        };
+
+        constexpr Charbtmp K = {
+            0x11,
+            0x12,
+            0x14,
+            0x1C,
+            0x14,
+            0x12,
+            0x12,
+            0x11
+        };
+
+        constexpr Charbtmp L = {
+            0x10,
+            0x10,
+            0x10,
+            0x10,
+            0x10,
+            0x10,
+            0x10,
+            0x1F
+        };
+
+        constexpr Charbtmp M = {
+            0x11,
+            0x1B,
+            0x15,
+            0x11,
+            0x11,
+            0x11,
+            0x11,
+            0x11
+        };
+
+        constexpr Charbtmp N = {
+            0x11,
+            0x19,
+            0x15,
+            0x13,
+            0x11,
+            0x11,
+            0x11,
+            0x11
+        };
+
+        constexpr Charbtmp O = {
+            0x0E,
+            0x11,
+            0x11,
+            0x11,
+            0x11,
+            0x11,
+            0x11,
+            0x0E
+        };
+
+        constexpr Charbtmp P = {
+            0x1E,
+            0x11,
+            0x11,
+            0x1E,
+            0x10,
+            0x10,
+            0x10,
+            0x10
+        };
+
+        constexpr Charbtmp Q = {
+            0x0E,
+            0x11,
+            0x11,
+            0x11,
+            0x11,
+            0x15,
+            0x13,
+            0x0F
+        };
+
+        constexpr Charbtmp R = {
+            0x1E,
+            0x11,
+            0x11,
+            0x1E,
+            0x18,
+            0x14,
+            0x12,
+            0x11
+        };
+
+        constexpr Charbtmp S = {
+            0x0E,
+            0x11,
+            0x10,
+            0x0E,
+            0x01,
+            0x01,
+            0x11,
+            0x0E
+        };
+
+        constexpr Charbtmp T = {
+            0x1F,
+            0x04,
+            0x04,
+            0x04,
+            0x04,
+            0x04,
+            0x04,
+            0x04
+        };
+
+        constexpr Charbtmp U = {
+            0x11,
+            0x11,
+            0x11,
+            0x11,
+            0x11,
+            0x11,
+            0x11,
+            0x0E
+        };
+
+        constexpr Charbtmp V = {
+            0x11,
+            0x11,
+            0x11,
+            0x0A,
+            0x0A,
+            0x0A,
+            0x04,
+            0x04
+        };
+
+        constexpr Charbtmp W = {
+            0x11,
+            0x11,
+            0x11,
+            0x11,
+            0x11,
+            0x15,
+            0x1B,
+            0x11
+        };
+
+        constexpr Charbtmp X = {
+            0x11,
+            0x0A,
+            0x0A,
+            0x04,
+            0x04,
+            0x0A,
+            0x0A,
+            0x11
+        };
+
+        constexpr Charbtmp Y = {
+            0x11,
+            0x0A,
+            0x0A,
+            0x04,
+            0x04,
+            0x04,
+            0x04,
+            0x04
+        };
+
+        constexpr Charbtmp Z = {
+            0x1F,
+            0x01,
+            0x02,
+            0x04,
+            0x04,
+            0x08,
+            0x10,
+            0x1F
+        };
+
+        constexpr Charbtmp Unknown = {
+            0x0E,
+            0x01,
+            0x0E,
+            0x10,
+            0x10,
+            0x0E,
+            0x00,
+            0x04
+        };
+
+        const char *asciitocbtmp(const char ascii){
+            switch(ascii){
+                case 'A': return A; break;
+                case 'B': return B; break;
+                case 'C': return C; break;
+                case 'D': return D; break;
+                case 'E': return E; break;
+                case 'F': return F; break;
+                case 'G': return G; break;
+                case 'H': return H; break;
+                case 'I': return I; break;
+                case 'J': return J; break;
+                case 'K': return K; break;
+                case 'L': return L; break;
+                case 'M': return M; break;
+                case 'N': return N; break;
+                case 'O': return O; break;
+                case 'P': return P; break;
+                case 'Q': return Q; break;
+                case 'R': return R; break;
+                case 'S': return S; break;
+                case 'T': return T; break;
+                case 'U': return U; break;
+                case 'V': return V; break;
+                case 'W': return W; break;
+                case 'X': return X; break;
+                case 'Y': return Y; break;
+                case 'Z': return Z; break;
+                default: return Unknown; break;
+            }
+        }
     }
 
     class Bitmap{
@@ -664,6 +999,68 @@ namespace sbtmp{
         //no alpha
         void triangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color::Color val){
             triangle(x1, y1, x2, y2, x3, y3, color::get_red(val), color::get_green(val), color::get_blue(val));
+        }
+
+        //draws a char from namespace chars
+        void draw_char_a(uint32_t x_pos, uint32_t y_pos, uint16_t size, const chars::Charbtmp chr, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            for(int i = 0; i < 8; i++){
+                for(int j = 0; j < 5; j++){
+                    if((chr[i] << (j + 3)) & 0b10000000) // offset of 3 because the pixel is stored in the last 5 bits of the char and not the first 5
+                        rectangle_a(x_pos + j * size, y_pos + i * size, x_pos + (j + 1) * size, y_pos + (i + 1) * size, red, green, blue, alpha);
+                }
+            }
+        }
+
+        //draws a char from namespace chars
+        //no alpha
+        void draw_char(uint32_t x_pos, uint32_t y_pos, uint16_t size, const chars::Charbtmp chr, uint8_t red, uint8_t green, uint8_t blue){
+            for(int i = 0; i < 8; i++){
+                for(int j = 0; j < 5; j++){
+                    if((chr[i] << (j + 3)) & 0b10000000) // offset of 3 because the pixel is stored in the last 5 bits of the char and not the first 5
+                        rectangle(x_pos + j * size, y_pos + i * size, x_pos + (j + 1) * size, y_pos + (i + 1) * size, red, green, blue);
+                }
+            }
+        }
+
+        //draws a char from namespace chars
+        void draw_char_a(uint32_t x_pos, uint32_t y_pos, uint16_t size, const chars::Charbtmp chr, sbtmp::color::Color val){
+            draw_char_a(x_pos, y_pos, size, chr, sbtmp::color::get_red(val), sbtmp::color::get_green(val), sbtmp::color::get_blue(val), sbtmp::color::get_alpha(val));
+        }
+
+        //draws a char from namespace chars
+        //no alpha
+        void draw_char(uint32_t x_pos, uint32_t y_pos, uint16_t size, const chars::Charbtmp chr, sbtmp::color::Color val){
+            draw_char(x_pos, y_pos, size, chr, sbtmp::color::get_red(val), sbtmp::color::get_green(val), sbtmp::color::get_blue(val));
+        }
+
+        //draws a string
+        void draw_string_a(uint32_t x_pos, uint32_t y_pos, uint16_t size, const char *str, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            int i = 0;
+            while(*str){
+                draw_char_a(x_pos + i * size * 6, y_pos, size, chars::asciitocbtmp(*str), red, green, blue, alpha);
+                i++; str++;
+            }
+        }
+
+        //draws a string
+        //no alpha
+        void draw_string(uint32_t x_pos, uint32_t y_pos, uint16_t size, const char *str, uint8_t red, uint8_t green, uint8_t blue){
+            int i = 0;
+            while(*str){
+                draw_char(x_pos + i * size * 6, y_pos, size, chars::asciitocbtmp(*str), red, green, blue);
+                i++; str++;
+            }
+        }
+
+        //draws a string
+        void draw_string_a(uint32_t x_pos, uint32_t y_pos, uint16_t size, const char *str, color::Color val){
+            draw_string_a(x_pos, y_pos, size, str, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //draws a string
+        //no alpha
+        void draw_string(uint32_t x_pos, uint32_t y_pos, uint16_t size, const char *str, color::Color val){
+            draw_string(x_pos, y_pos, size, str, color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
         //converts the image to black and white in the specified area
