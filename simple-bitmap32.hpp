@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.48
+/* very simple bitmap library version exp 0.50
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
@@ -111,6 +111,13 @@
  * 0.48
  * - added simple char/string drawing function (only capital letters)
  * 
+ * 0.49
+ * - added all 52 letters
+ * 
+ * 0.50
+ * - added all standard ascii characters
+ * - draw_char can draw a char-bitmap or a char now
+ * 
  * TODO:
  * - add function to load bitmap data from arrays
  * - add more filters and resize functions (nearest neighbour | bilinear | bicubic)
@@ -196,305 +203,134 @@ namespace sbtmp{
 
         typedef char Charbtmp[8];
 
-        constexpr Charbtmp A = {
-            0x04,
-            0x0A,
-            0x11,
-            0x11,
-            0x1F,
-            0x11,
-            0x11,
-            0x11
-        };
+        constexpr Charbtmp A = {0x04, 0x0A, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11};
+        constexpr Charbtmp B = {0x1E, 0x11, 0x11, 0x1E, 0x11, 0x11, 0x11, 0x1E};
+        constexpr Charbtmp C = {0x0E, 0x11, 0x10, 0x10, 0x10, 0x10, 0x11, 0x0E};
+        constexpr Charbtmp D = {0x1C, 0x12, 0x11, 0x11, 0x11, 0x11, 0x12, 0x1C};
+        constexpr Charbtmp E = {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10, 0x1F};
+        constexpr Charbtmp F = {0x1F, 0x10, 0x10, 0x1E, 0x10, 0x10, 0x10, 0x10};
+        constexpr Charbtmp G = {0x0E, 0x11, 0x11, 0x10, 0x12, 0x11, 0x11, 0x0E};
+        constexpr Charbtmp H = {0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11, 0x11};
+        constexpr Charbtmp I = {0x0E, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E};
+        constexpr Charbtmp J = {0x1F, 0x01, 0x01, 0x01, 0x01, 0x11, 0x11, 0x0E};
+        constexpr Charbtmp K = {0x11, 0x12, 0x14, 0x1C, 0x14, 0x12, 0x12, 0x11};
+        constexpr Charbtmp L = {0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1F};
+        constexpr Charbtmp M = {0x11, 0x1B, 0x15, 0x11, 0x11, 0x11, 0x11, 0x11};
+        constexpr Charbtmp N = {0x11, 0x19, 0x15, 0x13, 0x11, 0x11, 0x11, 0x11};
+        constexpr Charbtmp O = {0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E};
+        constexpr Charbtmp P = {0x1E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x10, 0x10};
+        constexpr Charbtmp Q = {0x0E, 0x11, 0x11, 0x11, 0x11, 0x15, 0x13, 0x0F};
+        constexpr Charbtmp R = {0x1E, 0x11, 0x11, 0x1E, 0x18, 0x14, 0x12, 0x11};
+        constexpr Charbtmp S = {0x0E, 0x11, 0x10, 0x0E, 0x01, 0x01, 0x11, 0x0E};
+        constexpr Charbtmp T = {0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04};
+        constexpr Charbtmp U = {0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E};
+        constexpr Charbtmp V = {0x11, 0x11, 0x11, 0x0A, 0x0A, 0x0A, 0x04, 0x04};
+        constexpr Charbtmp W = {0x11, 0x11, 0x11, 0x11, 0x11, 0x15, 0x1B, 0x11};
+        constexpr Charbtmp X = {0x11, 0x0A, 0x0A, 0x04, 0x04, 0x0A, 0x0A, 0x11};
+        constexpr Charbtmp Y = {0x11, 0x0A, 0x0A, 0x04, 0x04, 0x04, 0x04, 0x04};
+        constexpr Charbtmp Z = {0x1F, 0x01, 0x02, 0x04, 0x04, 0x08, 0x10, 0x1F};
 
-        constexpr Charbtmp B = {
-            0x1E,
-            0x11,
-            0x11,
-            0x1E,
-            0x11,
-            0x11,
-            0x11,
-            0x1E
-        };
+        constexpr Charbtmp a = {0x00, 0x00, 0x00, 0x0F, 0x11, 0x11, 0x13, 0x0F};
+        constexpr Charbtmp b = {0x10, 0x10, 0x10, 0x1E, 0x11, 0x11, 0x11, 0x0E};
+        constexpr Charbtmp c = {0x00, 0x00, 0x00, 0x0F, 0x10, 0x10, 0x10, 0x0F};
+        constexpr Charbtmp d = {0x01, 0x01, 0x01, 0x0F, 0x11, 0x11, 0x11, 0x0F};
+        constexpr Charbtmp e = {0x00, 0x00, 0x00, 0x0E, 0x11, 0x1E, 0x10, 0x0E};
+        constexpr Charbtmp f = {0x03, 0x04, 0x04, 0x0E, 0x04, 0x04, 0x04, 0x04};
+        constexpr Charbtmp g = {0x00, 0x00, 0x00, 0x0E, 0x11, 0x0F, 0x01, 0x0E};
+        constexpr Charbtmp h = {0x10, 0x10, 0x10, 0x1E, 0x11, 0x11, 0x11, 0x11};
+        constexpr Charbtmp i = {0x00, 0x00, 0x04, 0x00, 0x04, 0x04, 0x04, 0x04};
+        constexpr Charbtmp j = {0x00, 0x00, 0x02, 0x00, 0x02, 0x02, 0x0A, 0x04};
+        constexpr Charbtmp k = {0x10, 0x10, 0x10, 0x11, 0x16, 0x18, 0x16, 0x11};
+        constexpr Charbtmp l = {0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x02};
+        constexpr Charbtmp m = {0x00, 0x00, 0x00, 0x0A, 0x15, 0x15, 0x11, 0x11};
+        constexpr Charbtmp n = {0x00, 0x00, 0x00, 0x1F, 0x09, 0x09, 0x09, 0x09};
+        constexpr Charbtmp o = {0x00, 0x00, 0x00, 0x0E, 0x11, 0x11, 0x11, 0x0E};
+        constexpr Charbtmp p = {0x00, 0x00, 0x00, 0x0E, 0x11, 0x1E, 0x10, 0x10};
+        constexpr Charbtmp q = {0x00, 0x00, 0x00, 0x0E, 0x11, 0x0F, 0x01, 0x01};
+        constexpr Charbtmp r = {0x00, 0x00, 0x00, 0x0A, 0x0C, 0x08, 0x08, 0x08};
+        constexpr Charbtmp s = {0x00, 0x00, 0x00, 0x0E, 0x10, 0x0E, 0x01, 0x0E};
+        constexpr Charbtmp t = {0x04, 0x04, 0x04, 0x0E, 0x04, 0x04, 0x04, 0x02};
+        constexpr Charbtmp u = {0x00, 0x00, 0x00, 0x11, 0x11, 0x11, 0x11, 0x0E};
+        constexpr Charbtmp v = {0x00, 0x00, 0x00, 0x11, 0x11, 0x0A, 0x0A, 0x04};
+        constexpr Charbtmp w = {0x00, 0x00, 0x00, 0x11, 0x11, 0x15, 0x15, 0x0A};
+        constexpr Charbtmp x = {0x00, 0x00, 0x00, 0x11, 0x0A, 0x04, 0x0A, 0x11};
+        constexpr Charbtmp y = {0x00, 0x00, 0x00, 0x0A, 0x04, 0x04, 0x04, 0x04};
+        constexpr Charbtmp z = {0x00, 0x00, 0x00, 0x1F, 0x02, 0x04, 0x08, 0x1F};
 
-        constexpr Charbtmp C = {
-            0x0E,
-            0x11,
-            0x10,
-            0x10,
-            0x10,
-            0x10,
-            0x11,
-            0x0E
-        };
+        constexpr Charbtmp one = {0x04, 0x0C, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0E};
+        constexpr Charbtmp two = {0x0E, 0x11, 0x01, 0x03, 0x0C, 0x10, 0x10, 0x1F};
+        constexpr Charbtmp three = {0x0E, 0x11, 0x01, 0x0E, 0x01, 0x01, 0x11, 0x0E};
+        constexpr Charbtmp four = {0x08, 0x08, 0x12, 0x12, 0x1F, 0x02, 0x02, 0x02};
+        constexpr Charbtmp five = {0x1F, 0x10, 0x10, 0x1E, 0x01, 0x01, 0x11, 0x0E};
+        constexpr Charbtmp six = {0x0E, 0x11, 0x10, 0x1E, 0x11, 0x11, 0x11, 0x0E};
+        constexpr Charbtmp seven = {0x1F, 0x01, 0x02, 0x02, 0x04, 0x04, 0x08, 0x08};
+        constexpr Charbtmp eight = {0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x11, 0x0E};
+        constexpr Charbtmp nine = {0x0E, 0x11, 0x11, 0x0F, 0x01, 0x01, 0x11, 0x0E};
+        constexpr Charbtmp zero = {0x0E, 0x13, 0x13, 0x15, 0x15, 0x19, 0x19, 0x0E};
 
-        constexpr Charbtmp D = {
-            0x1C,
-            0x12,
-            0x11,
-            0x11,
-            0x11,
-            0x11,
-            0x12,
-            0x1C
-        };
+        constexpr Charbtmp exclamation_mark = {0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x00, 0x04};
+        constexpr Charbtmp double_quote = {0x0A, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+        constexpr Charbtmp hash = {0x0A, 0x0A, 0x1F, 0x0A, 0x0A, 0x1F, 0x0A, 0x0A};
+        constexpr Charbtmp dollar = {0x00, 0x04, 0x0F, 0x14, 0x0E, 0x05, 0x1E, 0x04};
+        constexpr Charbtmp percent = {0x19, 0x1A, 0x02, 0x04, 0x04, 0x08, 0x0B, 0x13};
+        constexpr Charbtmp ampersand = {0x0E, 0x11, 0x11, 0x12, 0x0C, 0x15, 0x12, 0x0D};
+        constexpr Charbtmp single_quote = {0x04, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+        constexpr Charbtmp left_round_bracket = {0x02, 0x04, 0x08, 0x08, 0x08, 0x08, 0x04, 0x02};
+        constexpr Charbtmp right_round_bracket = {0x08, 0x04, 0x02, 0x02, 0x02, 0x02, 0x04, 0x08};
+        constexpr Charbtmp asterisk = {0x00, 0x00, 0x00, 0x15, 0x0E, 0x1F, 0x0E, 0x15};
+        constexpr Charbtmp plus = {0x00, 0x00, 0x00, 0x04, 0x04, 0x1F, 0x04, 0x04};
+        constexpr Charbtmp comma = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x08};
+        constexpr Charbtmp minus = {0x00, 0x00, 0x00, 0x00, 0x00, 0x1F, 0x00, 0x00};
+        constexpr Charbtmp dot = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04};
+        constexpr Charbtmp slash = {0x01, 0x02, 0x02, 0x04, 0x04, 0x08, 0x08, 0x10};
+        constexpr Charbtmp colon = {0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x04};
+        constexpr Charbtmp semicolon = {0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x04, 0x08};
+        constexpr Charbtmp left_angle_bracket = {0x01, 0x02, 0x04, 0x08, 0x08, 0x04, 0x02, 0x01};
+        constexpr Charbtmp equal = {0x00, 0x00, 0x00, 0x00, 0x1F, 0x00, 0x1F, 0x00};
+        constexpr Charbtmp right_angle_bracket = {0x10, 0x08, 0x04, 0x02, 0x02, 0x04, 0x08, 0x10};
+        constexpr Charbtmp question_mark = {0x0E, 0x01, 0x0E, 0x10, 0x10, 0x0E, 0x00, 0x04};
+        constexpr Charbtmp at = {0x0E, 0x15, 0x1B, 0x1B, 0x1D, 0x16, 0x10, 0x0E};
+        constexpr Charbtmp left_square_bracket = { 0x0E, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x0E};
+        constexpr Charbtmp backslash = {0x10, 0x08, 0x08, 0x04, 0x04, 0x02, 0x02, 0x01};
+        constexpr Charbtmp right_square_bracket = {0x0E, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x0E};
+        constexpr Charbtmp caret = {0x04, 0x0A, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00};
+        constexpr Charbtmp underscore = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F};
+        constexpr Charbtmp backtick = {0x04, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+        constexpr Charbtmp left_curly_bracket = {0x02, 0x04, 0x04, 0x18, 0x18, 0x04, 0x04, 0x02};
+        constexpr Charbtmp pipe = {0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04};
+        constexpr Charbtmp right_curly_bracket = {0x08, 0x04, 0x04, 0x03, 0x03, 0x04, 0x04, 0x08};
+        constexpr Charbtmp tilde = {0x00, 0x00, 0x00, 0x00, 0x08, 0x15, 0x02, 0x00};
 
-        constexpr Charbtmp E = {
-            0x1F,
-            0x10,
-            0x10,
-            0x1E,
-            0x10,
-            0x10,
-            0x10,
-            0x1F
-        };
-
-        constexpr Charbtmp F = {
-            0x1F,
-            0x10,
-            0x10,
-            0x1E,
-            0x10,
-            0x10,
-            0x10,
-            0x10
-        };
-
-        constexpr Charbtmp G = {
-            0x0E,
-            0x11,
-            0x11,
-            0x10,
-            0x12,
-            0x11,
-            0x11,
-            0x0
-        };
-
-        constexpr Charbtmp H = {
-            0x11,
-            0x11,
-            0x11,
-            0x1F,
-            0x11,
-            0x11,
-            0x11,
-            0x11
-        };
-
-        constexpr Charbtmp I = {
-            0x0E,
-            0x04,
-            0x04,
-            0x04,
-            0x04,
-            0x04,
-            0x04,
-            0x0E
-        };
-
-        constexpr Charbtmp J = {
-            0x1F,
-            0x01,
-            0x01,
-            0x01,
-            0x01,
-            0x11,
-            0x11,
-            0x0E
-        };
-
-        constexpr Charbtmp K = {
-            0x11,
-            0x12,
-            0x14,
-            0x1C,
-            0x14,
-            0x12,
-            0x12,
-            0x11
-        };
-
-        constexpr Charbtmp L = {
-            0x10,
-            0x10,
-            0x10,
-            0x10,
-            0x10,
-            0x10,
-            0x10,
-            0x1F
-        };
-
-        constexpr Charbtmp M = {
-            0x11,
-            0x1B,
-            0x15,
-            0x11,
-            0x11,
-            0x11,
-            0x11,
-            0x11
-        };
-
-        constexpr Charbtmp N = {
-            0x11,
-            0x19,
-            0x15,
-            0x13,
-            0x11,
-            0x11,
-            0x11,
-            0x11
-        };
-
-        constexpr Charbtmp O = {
-            0x0E,
-            0x11,
-            0x11,
-            0x11,
-            0x11,
-            0x11,
-            0x11,
-            0x0E
-        };
-
-        constexpr Charbtmp P = {
-            0x1E,
-            0x11,
-            0x11,
-            0x1E,
-            0x10,
-            0x10,
-            0x10,
-            0x10
-        };
-
-        constexpr Charbtmp Q = {
-            0x0E,
-            0x11,
-            0x11,
-            0x11,
-            0x11,
-            0x15,
-            0x13,
-            0x0F
-        };
-
-        constexpr Charbtmp R = {
-            0x1E,
-            0x11,
-            0x11,
-            0x1E,
-            0x18,
-            0x14,
-            0x12,
-            0x11
-        };
-
-        constexpr Charbtmp S = {
-            0x0E,
-            0x11,
-            0x10,
-            0x0E,
-            0x01,
-            0x01,
-            0x11,
-            0x0E
-        };
-
-        constexpr Charbtmp T = {
-            0x1F,
-            0x04,
-            0x04,
-            0x04,
-            0x04,
-            0x04,
-            0x04,
-            0x04
-        };
-
-        constexpr Charbtmp U = {
-            0x11,
-            0x11,
-            0x11,
-            0x11,
-            0x11,
-            0x11,
-            0x11,
-            0x0E
-        };
-
-        constexpr Charbtmp V = {
-            0x11,
-            0x11,
-            0x11,
-            0x0A,
-            0x0A,
-            0x0A,
-            0x04,
-            0x04
-        };
-
-        constexpr Charbtmp W = {
-            0x11,
-            0x11,
-            0x11,
-            0x11,
-            0x11,
-            0x15,
-            0x1B,
-            0x11
-        };
-
-        constexpr Charbtmp X = {
-            0x11,
-            0x0A,
-            0x0A,
-            0x04,
-            0x04,
-            0x0A,
-            0x0A,
-            0x11
-        };
-
-        constexpr Charbtmp Y = {
-            0x11,
-            0x0A,
-            0x0A,
-            0x04,
-            0x04,
-            0x04,
-            0x04,
-            0x04
-        };
-
-        constexpr Charbtmp Z = {
-            0x1F,
-            0x01,
-            0x02,
-            0x04,
-            0x04,
-            0x08,
-            0x10,
-            0x1F
-        };
-
-        constexpr Charbtmp Unknown = {
-            0x0E,
-            0x01,
-            0x0E,
-            0x10,
-            0x10,
-            0x0E,
-            0x00,
-            0x04
-        };
-
+        //convert any char to the corresponding predefined char-bitmap
         const char *asciitocbtmp(const char ascii){
             switch(ascii){
+                case 'a': return a; break;
+                case 'b': return b; break;
+                case 'c': return c; break;
+                case 'd': return d; break;
+                case 'e': return e; break;
+                case 'f': return f; break;
+                case 'g': return g; break;
+                case 'h': return h; break;
+                case 'i': return i; break;
+                case 'j': return j; break;
+                case 'k': return k; break;
+                case 'l': return l; break;
+                case 'm': return m; break;
+                case 'n': return n; break;
+                case 'o': return o; break;
+                case 'p': return p; break;
+                case 'q': return q; break;
+                case 'r': return r; break;
+                case 's': return s; break;
+                case 't': return t; break;
+                case 'u': return u; break;
+                case 'v': return v; break;
+                case 'w': return w; break;
+                case 'x': return x; break;
+                case 'y': return y; break;
+                case 'z': return z; break;
+
                 case 'A': return A; break;
                 case 'B': return B; break;
                 case 'C': return C; break;
@@ -521,7 +357,52 @@ namespace sbtmp{
                 case 'X': return X; break;
                 case 'Y': return Y; break;
                 case 'Z': return Z; break;
-                default: return Unknown; break;
+
+                case '1': return one; break;
+                case '2': return two; break;
+                case '3': return three; break;
+                case '4': return four; break;
+                case '5': return five; break;
+                case '6': return six; break;
+                case '7': return seven; break;
+                case '8': return eight; break;
+                case '9': return nine; break;
+                case '0': return zero; break;
+
+                case '!': return exclamation_mark; break;
+                case '\"': return double_quote; break;
+                case '#': return hash; break;
+                case '$': return dollar; break;
+                case '%': return percent; break;
+                case '&': return ampersand; break;
+                case '\'': return single_quote; break;
+                case '(': return left_round_bracket; break;
+                case ')': return right_round_bracket; break;
+                case '*': return asterisk; break;
+                case '+': return plus; break;
+                case ',': return comma; break;
+                case '-': return minus; break;
+                case '.': return dot; break;
+                case '/': return slash; break;
+                case ':': return colon; break;
+                case ';': return semicolon; break;
+                case '<': return left_angle_bracket; break;
+                case '=': return equal; break;
+                case '>': return right_angle_bracket; break;
+                case '?': return question_mark; break;
+                case '@': return at; break;
+                case '[': return left_square_bracket; break;
+                case '\\': return backslash; break;
+                case ']': return right_square_bracket; break;
+                case '^': return caret; break;
+                case '_': return underscore; break;
+                case '`': return backtick; break;
+                case '{': return left_curly_bracket; break;
+                case '|': return pipe; break;
+                case '}': return right_curly_bracket; break;
+                case '~': return tilde; break;
+
+                default: return question_mark; break;
             }
         }
     }
@@ -1002,7 +883,10 @@ namespace sbtmp{
         }
 
         //draws a char from namespace chars
+        //character bitmap
         void draw_char_a(uint32_t x_pos, uint32_t y_pos, uint16_t size, const chars::Charbtmp chr, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(x_pos > btmp_width || y_pos > btmp_height || !initialized)
+                return;
             for(int i = 0; i < 8; i++){
                 for(int j = 0; j < 5; j++){
                     if((chr[i] << (j + 3)) & 0b10000000) // offset of 3 because the pixel is stored in the last 5 bits of the char and not the first 5
@@ -1012,8 +896,11 @@ namespace sbtmp{
         }
 
         //draws a char from namespace chars
+        //character bitmap
         //no alpha
         void draw_char(uint32_t x_pos, uint32_t y_pos, uint16_t size, const chars::Charbtmp chr, uint8_t red, uint8_t green, uint8_t blue){
+            if(x_pos > btmp_width || y_pos > btmp_height || !initialized)
+                return;
             for(int i = 0; i < 8; i++){
                 for(int j = 0; j < 5; j++){
                     if((chr[i] << (j + 3)) & 0b10000000) // offset of 3 because the pixel is stored in the last 5 bits of the char and not the first 5
@@ -1023,20 +910,42 @@ namespace sbtmp{
         }
 
         //draws a char from namespace chars
+        //character bitmap
         void draw_char_a(uint32_t x_pos, uint32_t y_pos, uint16_t size, const chars::Charbtmp chr, sbtmp::color::Color val){
-            draw_char_a(x_pos, y_pos, size, chr, sbtmp::color::get_red(val), sbtmp::color::get_green(val), sbtmp::color::get_blue(val), sbtmp::color::get_alpha(val));
+            draw_char_a(x_pos, y_pos, size, chr, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //draws a char from namespace chars
+        //character bitmap
         //no alpha
         void draw_char(uint32_t x_pos, uint32_t y_pos, uint16_t size, const chars::Charbtmp chr, sbtmp::color::Color val){
-            draw_char(x_pos, y_pos, size, chr, sbtmp::color::get_red(val), sbtmp::color::get_green(val), sbtmp::color::get_blue(val));
+            draw_char(x_pos, y_pos, size, chr, color::get_red(val), color::get_green(val), color::get_blue(val));
+        }
+
+        //draws a char from namespace chars
+        //char
+        void draw_char_a(uint32_t x_pos, uint32_t y_pos, uint16_t size, char chr, sbtmp::color::Color val){
+            draw_char_a(x_pos, y_pos, size, chars::asciitocbtmp(chr), color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //draws a char from namespace chars
+        //char
+        //no alpha
+        void draw_char(uint32_t x_pos, uint32_t y_pos, uint16_t size, char chr, sbtmp::color::Color val){
+            draw_char(x_pos, y_pos, size, chars::asciitocbtmp(chr), color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
         //draws a string
         void draw_string_a(uint32_t x_pos, uint32_t y_pos, uint16_t size, const char *str, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             int i = 0;
             while(*str){
+                if(*str == '\n'){
+                    i = 0;
+                    y_pos += 9 * size;
+                    str++;
+                    continue;
+                }
+                if(*str == ' '){i++; str++; continue;}
                 draw_char_a(x_pos + i * size * 6, y_pos, size, chars::asciitocbtmp(*str), red, green, blue, alpha);
                 i++; str++;
             }
@@ -1047,6 +956,13 @@ namespace sbtmp{
         void draw_string(uint32_t x_pos, uint32_t y_pos, uint16_t size, const char *str, uint8_t red, uint8_t green, uint8_t blue){
             int i = 0;
             while(*str){
+                if(*str == '\n'){
+                    i = 0;
+                    y_pos += 9 * size;
+                    str++;
+                    continue;
+                }
+                if(*str == ' '){i++; str++; continue;}
                 draw_char(x_pos + i * size * 6, y_pos, size, chars::asciitocbtmp(*str), red, green, blue);
                 i++; str++;
             }
@@ -1387,12 +1303,12 @@ namespace sbtmp{
             out_image.write((char *)&green_channel_bit_mask, 4);
             out_image.write((char *)&blue_channel_bit_mask, 4);
             out_image.write((char *)&alpha_channel_bit_mask, 4);
-            out_image.write((char *)&*color_space, 4);
-            out_image.write((char *)&*color_space_endpoints, 36);
-            out_image.write((char *)&*gamma_rgb, 12);
+            out_image.write((char *)color_space, 4);
+            out_image.write((char *)color_space_endpoints, 36);
+            out_image.write((char *)gamma_rgb, 12);
 
             //much better way to write pixel data(since ver exp 0.27)
-            out_image.write((char *)&*pixel_data, raw_data_size);
+            out_image.write((char *)pixel_data, raw_data_size);
 
             out_image.close();
 
