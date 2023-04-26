@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.50
+/* very simple bitmap library version exp 0.51
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
@@ -117,6 +117,10 @@
  * 0.50
  * - added all standard ascii characters
  * - draw_char can draw a char-bitmap or a char now
+ * 
+ * 0.51
+ * - fixed blur functions by introducing a buffer
+ * - fixed a double free bug in the destructor
  * 
  * TODO:
  * - add function to load bitmap data from arrays
@@ -452,7 +456,8 @@ namespace sbtmp{
         //destructor
         ~Bitmap(){
             // free data to prevent memory leak
-            free(pixel_data);
+            if(!pixel_data)
+                free(pixel_data);
         }
 
         //create function (recommended way to init images)
@@ -1057,6 +1062,8 @@ namespace sbtmp{
         void blur_a(){
             if(!initialized)
                 return;
+
+            Bitmap buffer(btmp_width, btmp_width);
             
             short red_buf, green_buf, blue_buf, alpha_buf;
             //Bitmap buff(width, height); //not needed yet
@@ -1096,15 +1103,24 @@ namespace sbtmp{
                                 get_pixel(x, y + 1, 3) +
                                 get_pixel(x + 1, y + 1, 3);
 
-                    set_pixel_a(x, y, red_buf/8, green_buf/8, blue_buf/8, alpha_buf/8);
+                    buffer.set_pixel_a(x, y, red_buf/8, green_buf/8, blue_buf/8, alpha_buf/8);
                 }
             }
+
+            for(uint32_t y = 0; y < btmp_height; y++){
+                for(uint32_t x = 0; x < btmp_width; x++){
+                    set_pixel_a(x, y, buffer.get_pixel(x, y));
+                }
+            }
+            buffer.del();
         }
 
         //this is a distunging and bad blur function!!!
         void blur(){
             if(!initialized)
                 return;
+            
+            Bitmap buffer(btmp_width, btmp_width);
             
             short red_buf, green_buf, blue_buf;
             //Bitmap buff(width, height); //not needed yet
@@ -1136,9 +1152,16 @@ namespace sbtmp{
                                 get_pixel(x, y + 1, 0) +
                                 get_pixel(x + 1, y + 1, 0);
 
-                    set_pixel(x, y, red_buf/8, green_buf/8, blue_buf/8);
+                    buffer.set_pixel(x, y, red_buf/8, green_buf/8, blue_buf/8);
                 }
             }
+
+            for(uint32_t y = 0; y < btmp_height; y++){
+                for(uint32_t x = 0; x < btmp_width; x++){
+                    set_pixel(x, y, buffer.get_pixel(x, y));
+                }
+            }
+            buffer.del();
         }
 
         #ifdef sbtmp_experimental
@@ -1256,7 +1279,7 @@ namespace sbtmp{
         }
 
         //frees the memory of the image and resets all properties
-        void reset(){
+        void del(){
             if(!initialized)
                 return;
 
