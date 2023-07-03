@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.51
+/* very simple bitmap library version exp 0.53
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
@@ -122,8 +122,19 @@
  * - fixed blur functions by introducing a buffer
  * - fixed a double free bug in the destructor
  * 
+ * 0.52
+ * - fixed major bug: Image had to be a perfect square else sbtmp would crash
+ * 
+ * 0.53
+ * - more bug fixes
+ * - shapes can now be placed on the image (even outside)
+ * - added border drawing function
+ * 
+ * 
+ * 
  * TODO:
- * - add function to load bitmap data from arrays
+ * - fix coord limits in rect|border and others
+ * - add more shapes (rectangle border, round rectangle, round rectangle border)
  * - add more filters and resize functions (nearest neighbour | bilinear | bicubic)
  */
 
@@ -135,7 +146,7 @@ namespace sbtmp{
     namespace color{
 
         typedef uint32_t Color;
-
+        
         constexpr Color clear       = 0x00000000;
         constexpr Color black       = 0x000000ff;
         constexpr Color white       = 0xffffffff;
@@ -498,8 +509,8 @@ namespace sbtmp{
         }
 
         //set pixel at coords x_pos, y_pos to rgba value
-        void set_pixel_a(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if (x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || !initialized)
+        void set_pixel_a(int32_t x_pos, int32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if (x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || x_pos < 0 || y_pos < 0 || !initialized)
                 return;
             pixel_data[get_index(x_pos, y_pos)+0] = blue;
             pixel_data[get_index(x_pos, y_pos)+1] = green;
@@ -509,8 +520,8 @@ namespace sbtmp{
 
         //set pixel at coords x_pos, y_pos to rgb value
         //no alpha
-        void set_pixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue){
-            if (x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || !initialized)
+        void set_pixel(int32_t x_pos, int32_t y_pos, uint8_t red, uint8_t green, uint8_t blue){
+            if (x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || x_pos < 0 || y_pos < 0 || !initialized)
                 return;
             pixel_data[get_index(x_pos, y_pos)+0] = blue;
             pixel_data[get_index(x_pos, y_pos)+1] = green;
@@ -519,24 +530,26 @@ namespace sbtmp{
         }
 
         //set pixel at coords x_pos, y_pos to rgba value
-        void set_pixel_a(uint32_t x_pos, uint32_t y_pos, color::Color val){
+        void set_pixel_a(int32_t x_pos, int32_t y_pos, color::Color val){
             set_pixel_a(x_pos, y_pos, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //set pixel at coords x_pos, y_pos to rgb value
         //no alpha
-        void set_pixel(uint32_t x_pos, uint32_t y_pos, color::Color val){
+        void set_pixel(int32_t x_pos, int32_t y_pos, color::Color val){
             set_pixel(x_pos, y_pos, color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
         //change the transparency of a pixel
-        void set_alpha(uint32_t x_pos, uint32_t y_pos, uint8_t alpha){
+        void set_alpha(int32_t x_pos, int32_t y_pos, uint8_t alpha){
+            if (x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || x_pos < 0 || y_pos < 0 || !initialized)
+                return;
             pixel_data[get_index(x_pos, y_pos)+3] = alpha;
         }
 
         //draws line between two points
         void line_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x1 < 0 || x1 > btmp_width - 1 || x2 < 0 || x2 > btmp_width - 1 || y1 < 0 || y1 > btmp_height - 1 || y2 < 0 || y2 > btmp_height - 1 || !initialized)
+            if(!initialized)
                 return;
             int32_t ax = x2 - x1, ay = y2 - y1;
             ax = (ax < 0) ? -ax : ax;
@@ -563,7 +576,7 @@ namespace sbtmp{
         //draws line between two points
         //no alpha
         void line(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t red, uint8_t green, uint8_t blue){
-            if(x1 < 0 || x1 > btmp_width - 1 || x2 < 0 || x2 > btmp_width - 1 || y1 < 0 || y1 > btmp_height - 1 || y2 < 0 || y2 > btmp_height - 1 || !initialized)
+            if(!initialized)
                 return;
             int32_t ax = x2 - x1, ay = y2 - y1;
             ax = (ax < 0) ? -ax : ax;
@@ -753,11 +766,11 @@ namespace sbtmp{
         }
 
         //draws a rectangle of given size
-        void rectangle_a(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x1 > x2 || y1 > y2 || x1 > btmp_width - 1 || y1 > btmp_height - 1 || x2 > btmp_width - 1 || y2 > btmp_height - 1 || !initialized)
+        void rectangle_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(x1 > x2 || y1 > y2 || !initialized)
                 return;
-            for(uint32_t i = x1; i < x2; i++){
-                for(uint32_t j = y1; j < y2; j++){
+            for(uint32_t i = x1; i <= x2; i++){
+                for(uint32_t j = y1; j <= y2; j++){
                     set_pixel_a(i, j, red, green, blue, alpha);
                 }
             }
@@ -765,24 +778,94 @@ namespace sbtmp{
 
         //draws a rectangle of given size
         //no alpha
-        void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, uint8_t red, uint8_t green, uint8_t blue){
-            if(x1 > x2 || y1 > y2 || x1 > btmp_width - 1 || y1 > btmp_height - 1 || x2 > btmp_width - 1 || y2 > btmp_height - 1 || !initialized)
+        void rectangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t red, uint8_t green, uint8_t blue){
+            if(x1 > x2 || y1 > y2 || !initialized)
                 return;
-            for(uint32_t i = x1; i < x2; i++){
-                for(uint32_t j = y1; j < y2; j++){
+            for(uint32_t i = x1; i <= x2; i++){
+                for(uint32_t j = y1; j <= y2; j++){
                     set_pixel(i, j, red, green, blue);
                 }
             }
         }
 
         //draws a rectangle of given size
-        void rectangle_a(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, color::Color val){
+        void rectangle_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, color::Color val){
             rectangle_a(x1, y1, x2, y2, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //draws a rectangle of given size
-        void rectangle(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, color::Color val){
+        void rectangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, color::Color val){
             rectangle(x1, y1, x2, y2, color::get_red(val), color::get_green(val), color::get_blue(val));
+        }
+
+        //draws a border of given size
+        void border_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t thickness, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(x1 > x2 || y1 > y2 || !initialized)
+                return;
+
+            //vertical lines
+            for(uint32_t j = y1; j <= y2; j++){
+                //left
+                for(int32_t i = x1; i <= x1 + thickness; i++){
+                    set_pixel_a(i, j, red, green, blue, alpha);
+                }
+                //right
+                for(int32_t i = x2 - thickness; i <= x2; i++){
+                    set_pixel_a(i, j, red, green, blue, alpha);
+                }
+            }
+            //horizontal lines
+            for(int32_t i = x1 + thickness; i <= x2 - thickness; i++){
+                //upper
+                for(uint32_t j = y1; j <= y1 + thickness; j++){
+                    set_pixel_a(i, j, red, green, blue, alpha);
+                }
+                //lower
+                for(uint32_t j = y2 - thickness; j <= y2; j++){
+                    set_pixel_a(i, j, red, green, blue, alpha);
+                }
+            }
+        }
+
+        //draws a border of given size
+        //no alpha
+        void border(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t thickness, uint8_t red, uint8_t green, uint8_t blue){
+            if(x1 > x2 || y1 > y2 || !initialized)
+                return;
+
+            //vertical lines
+            for(uint32_t j = y1; j <= y2; j++){
+                //left
+                for(int32_t i = x1; i <= x1 + thickness; i++){
+                    set_pixel(i, j, red, green, blue);
+                }
+                //right
+                for(int32_t i = x2 - thickness; i <= x2; i++){
+                    set_pixel(i, j, red, green, blue);
+                }
+            }
+            //horizontal lines
+            for(int32_t i = x1 + thickness; i <= x2 - thickness; i++){
+                //upper
+                for(uint32_t j = y1; j <= y1 + thickness; j++){
+                    set_pixel(i, j, red, green, blue);
+                }
+                //lower
+                for(uint32_t j = y2 - thickness; j <= y2; j++){
+                    set_pixel(i, j, red, green, blue);
+                }
+            }
+        }
+
+        //draws a border of given size
+        void border_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint16_t thickness, color::Color val){
+            border_a(x1, y1, x2, y2, thickness, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //draws a border of given size
+        //no alpha
+        void border(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint16_t thickness, color::Color val){
+            border(x1, y1, x2, y2, thickness, color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
         //draws a circle of given size
@@ -791,7 +874,7 @@ namespace sbtmp{
                 return;
             for(int32_t i = -radius; i < radius; i++){
                 for(int32_t j = -radius; j < radius; j++){
-                    if(i * i + j * j <= radius * radius && x_pos + i < btmp_width && x_pos + i >= 0 && y_pos + j < btmp_height && y_pos + j >= 0){
+                    if(i * i + j * j <= radius * radius){
                         set_pixel_a(x_pos + i, y_pos + j, red, green, blue, alpha);
                     }
                 }
@@ -805,7 +888,7 @@ namespace sbtmp{
                 return;
             for(int32_t i = -radius; i < radius; i++){
                 for(int32_t j = -radius; j < radius; j++){
-                    if(i * i + j * j <= radius * radius && x_pos + i < btmp_width && x_pos + i >= 0 && y_pos + j < btmp_height && y_pos + j >= 0){
+                    if(i * i + j * j <= radius * radius){
                         set_pixel(x_pos + i, y_pos + j, red, green, blue);
                     }
                 }
@@ -829,7 +912,7 @@ namespace sbtmp{
                 return;
             for(int32_t i = -out_radius; i < out_radius; i++){
                 for(int32_t j = -out_radius; j < out_radius; j++){
-                    if(i * i + j * j <= out_radius * out_radius && i * i + j * j >= in_radius * in_radius && x_pos + i < btmp_width && x_pos + i >= 0 && y_pos + j < btmp_height && y_pos + j >= 0){
+                    if(i * i + j * j <= out_radius * out_radius && i * i + j * j >= in_radius * in_radius){
                         set_pixel_a(x_pos + i, y_pos + j, red, green, blue, alpha);
                     }
                 }
@@ -843,7 +926,7 @@ namespace sbtmp{
                 return;
             for(int32_t i = -out_radius; i < out_radius; i++){
                 for(int32_t j = -out_radius; j < out_radius; j++){
-                    if(i * i + j * j <= out_radius * out_radius && i * i + j * j >= in_radius * in_radius && x_pos + i < btmp_width && x_pos + i >= 0 && y_pos + j < btmp_height && y_pos + j >= 0){
+                    if(i * i + j * j <= out_radius * out_radius && i * i + j * j >= in_radius * in_radius){
                         set_pixel(x_pos + i, y_pos + j, red, green, blue);
                     }
                 }
@@ -889,13 +972,13 @@ namespace sbtmp{
 
         //draws a char from namespace chars
         //character bitmap
-        void draw_char_a(uint32_t x_pos, uint32_t y_pos, uint16_t size, const chars::Charbtmp chr, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x_pos > btmp_width || y_pos > btmp_height || !initialized)
+        void draw_char_a(int32_t x_pos, int32_t y_pos, uint16_t size, const chars::Charbtmp chr, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(!initialized)
                 return;
             for(int i = 0; i < 8; i++){
                 for(int j = 0; j < 5; j++){
                     if((chr[i] << (j + 3)) & 0b10000000) // offset of 3 because the pixel is stored in the last 5 bits of the char and not the first 5
-                        rectangle_a(x_pos + j * size, y_pos + i * size, x_pos + (j + 1) * size, y_pos + (i + 1) * size, red, green, blue, alpha);
+                        rectangle_a(x_pos + j * size, y_pos + i * size, x_pos + (j + 1) * size - 1, y_pos + (i + 1) * size - 1, red, green, blue, alpha);
                 }
             }
         }
@@ -903,45 +986,47 @@ namespace sbtmp{
         //draws a char from namespace chars
         //character bitmap
         //no alpha
-        void draw_char(uint32_t x_pos, uint32_t y_pos, uint16_t size, const chars::Charbtmp chr, uint8_t red, uint8_t green, uint8_t blue){
-            if(x_pos > btmp_width || y_pos > btmp_height || !initialized)
+        void draw_char(int32_t x_pos, int32_t y_pos, uint16_t size, const chars::Charbtmp chr, uint8_t red, uint8_t green, uint8_t blue){
+            if(!initialized)
                 return;
             for(int i = 0; i < 8; i++){
                 for(int j = 0; j < 5; j++){
                     if((chr[i] << (j + 3)) & 0b10000000) // offset of 3 because the pixel is stored in the last 5 bits of the char and not the first 5
-                        rectangle(x_pos + j * size, y_pos + i * size, x_pos + (j + 1) * size, y_pos + (i + 1) * size, red, green, blue);
+                        rectangle(x_pos + j * size, y_pos + i * size, x_pos + (j + 1) * size - 1, y_pos + (i + 1) * size - 1, red, green, blue);
                 }
             }
         }
 
         //draws a char from namespace chars
         //character bitmap
-        void draw_char_a(uint32_t x_pos, uint32_t y_pos, uint16_t size, const chars::Charbtmp chr, sbtmp::color::Color val){
+        void draw_char_a(int32_t x_pos, int32_t y_pos, uint16_t size, const chars::Charbtmp chr, sbtmp::color::Color val){
             draw_char_a(x_pos, y_pos, size, chr, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //draws a char from namespace chars
         //character bitmap
         //no alpha
-        void draw_char(uint32_t x_pos, uint32_t y_pos, uint16_t size, const chars::Charbtmp chr, sbtmp::color::Color val){
+        void draw_char(int32_t x_pos, int32_t y_pos, uint16_t size, const chars::Charbtmp chr, sbtmp::color::Color val){
             draw_char(x_pos, y_pos, size, chr, color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
         //draws a char from namespace chars
         //char
-        void draw_char_a(uint32_t x_pos, uint32_t y_pos, uint16_t size, char chr, sbtmp::color::Color val){
+        void draw_char_a(int32_t x_pos, int32_t y_pos, uint16_t size, char chr, sbtmp::color::Color val){
             draw_char_a(x_pos, y_pos, size, chars::asciitocbtmp(chr), color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //draws a char from namespace chars
         //char
         //no alpha
-        void draw_char(uint32_t x_pos, uint32_t y_pos, uint16_t size, char chr, sbtmp::color::Color val){
+        void draw_char(int32_t x_pos, int32_t y_pos, uint16_t size, char chr, sbtmp::color::Color val){
             draw_char(x_pos, y_pos, size, chars::asciitocbtmp(chr), color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
         //draws a string
-        void draw_string_a(uint32_t x_pos, uint32_t y_pos, uint16_t size, const char *str, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+        void draw_string_a(int32_t x_pos, int32_t y_pos, uint16_t size, const char *str, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(!initialized)
+                return;
             int i = 0;
             while(*str){
                 if(*str == '\n'){
@@ -958,7 +1043,9 @@ namespace sbtmp{
 
         //draws a string
         //no alpha
-        void draw_string(uint32_t x_pos, uint32_t y_pos, uint16_t size, const char *str, uint8_t red, uint8_t green, uint8_t blue){
+        void draw_string(int32_t x_pos, int32_t y_pos, uint16_t size, const char *str, uint8_t red, uint8_t green, uint8_t blue){
+            if(!initialized)
+                return;
             int i = 0;
             while(*str){
                 if(*str == '\n'){
@@ -974,13 +1061,13 @@ namespace sbtmp{
         }
 
         //draws a string
-        void draw_string_a(uint32_t x_pos, uint32_t y_pos, uint16_t size, const char *str, color::Color val){
+        void draw_string_a(int32_t x_pos, int32_t y_pos, uint16_t size, const char *str, color::Color val){
             draw_string_a(x_pos, y_pos, size, str, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //draws a string
         //no alpha
-        void draw_string(uint32_t x_pos, uint32_t y_pos, uint16_t size, const char *str, color::Color val){
+        void draw_string(int32_t x_pos, int32_t y_pos, uint16_t size, const char *str, color::Color val){
             draw_string(x_pos, y_pos, size, str, color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
@@ -1001,7 +1088,7 @@ namespace sbtmp{
 
         //inverts the rgb values of the image in the specified area
         void rgb_invert(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2){
-            if(x1 > btmp_width || y1 > btmp_height || x2 > btmp_width || y2 > btmp_height || !initialized)
+            if(x1 > x2 || y1 > y2 || x1 > btmp_width - 1 || y1 > btmp_height - 1 || x2 > btmp_width - 1 || y2 > btmp_height - 1 || !initialized)
                 return;
             for(uint32_t i = x1; i < x2; i++){
                 for(uint32_t j = y1; j < y2; j++){
@@ -1015,7 +1102,7 @@ namespace sbtmp{
 
         //inverts the rgba values of the image in the specified area
         void rgba_invert(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2){
-            if(x1 > btmp_width || y1 > btmp_height || x2 > btmp_width || y2 > btmp_height || !initialized)
+            if(x1 > x2 || y1 > y2 || x1 > btmp_width - 1 || y1 > btmp_height - 1 || x2 > btmp_width - 1 || y2 > btmp_height - 1 || !initialized)
                 return;
             for(uint32_t i = x1; i < x2; i++){
                 for(uint32_t j = y1; j < y2; j++){
@@ -1058,7 +1145,7 @@ namespace sbtmp{
             }
         }
 
-        //this is a distunging and bad blur function!!!
+        //blur the image
         void blur_a(){
             if(!initialized)
                 return;
@@ -1115,7 +1202,8 @@ namespace sbtmp{
             buffer.del();
         }
 
-        //this is a distunging and bad blur function!!!
+        //blur the image
+        //no alpha
         void blur(){
             if(!initialized)
                 return;
@@ -1181,8 +1269,8 @@ namespace sbtmp{
         #endif
 
         //adds rgba value to specified pixel
-        void addpixel_a(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || !initialized)
+        void addpixel_a(int32_t x_pos, int32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if (x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || x_pos < 0 || y_pos < 0 || !initialized)
                 return;
             pixel_data[get_index(x_pos, y_pos)+0] += blue;
             pixel_data[get_index(x_pos, y_pos)+1] += green;
@@ -1191,8 +1279,8 @@ namespace sbtmp{
         }
 
         //adds rgb value to specified pixel
-        void addpixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue){
-            if(x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || !initialized)
+        void addpixel(int32_t x_pos, int32_t y_pos, uint8_t red, uint8_t green, uint8_t blue){
+            if (x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || x_pos < 0 || y_pos < 0 || !initialized)
                 return;
             pixel_data[get_index(x_pos, y_pos)+0] += blue;
             pixel_data[get_index(x_pos, y_pos)+1] += green;
@@ -1201,18 +1289,18 @@ namespace sbtmp{
         }
 
         //adds rgba value to specified pixel
-        void addpixel_a(uint32_t x_pos, uint32_t y_pos, color::Color val){
+        void addpixel_a(int32_t x_pos, int32_t y_pos, color::Color val){
             addpixel_a(x_pos, x_pos, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //adds rgb value to specified pixel
-        void addpixel(uint32_t x_pos, uint32_t y_pos, color::Color val){
+        void addpixel(int32_t x_pos, int32_t y_pos, color::Color val){
             addpixel(x_pos, x_pos, color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
         //subtracts rgba value from specified pixel
-        void subpixel_a(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
-            if(x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || !initialized)
+        void subpixel_a(int32_t x_pos, int32_t y_pos, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if (x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || x_pos < 0 || y_pos < 0 || !initialized)
                 return;
             pixel_data[get_index(x_pos, y_pos)+0] -= blue;
             pixel_data[get_index(x_pos, y_pos)+1] -= green;
@@ -1221,8 +1309,8 @@ namespace sbtmp{
         }
 
         //subtracts rgb value from specified pixel
-        void subpixel(uint32_t x_pos, uint32_t y_pos, uint8_t red, uint8_t green, uint8_t blue){
-            if(x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || !initialized)
+        void subpixel(int32_t x_pos, int32_t y_pos, uint8_t red, uint8_t green, uint8_t blue){
+            if (x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || x_pos < 0 || y_pos < 0 || !initialized)
                 return;
             pixel_data[get_index(x_pos, y_pos)+0] -= blue;
             pixel_data[get_index(x_pos, y_pos)+1] -= green;
@@ -1231,7 +1319,7 @@ namespace sbtmp{
         }
 
         //subtracts rgba value from specified pixel
-        void subpixel_a(uint32_t x_pos, uint32_t y_pos, color::Color val){
+        void subpixel_a(int32_t x_pos, int32_t y_pos, color::Color val){
             subpixel_a(x_pos, x_pos, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
@@ -1241,13 +1329,13 @@ namespace sbtmp{
         }
 
         //return the r-g-b-a value of specified pixel (3rd param: 0=b, 1=g, 2=r, 3=a)
-        uint8_t get_pixel(uint32_t x_pos, uint32_t y_pos, uint8_t color_index){
-            if(color_index > 3 || !initialized)
+        uint8_t get_pixel(int32_t x_pos, int32_t y_pos, uint8_t color_index){
+            if (color_index > 3 || x_pos > btmp_width - 1 || y_pos > btmp_height - 1 || x_pos < 0 || y_pos < 0 || !initialized)
                 return 0;
             return pixel_data[get_index(x_pos, y_pos) + color_index];
         }
 
-        color::Color get_pixel(uint32_t x_pos, uint32_t y_pos){
+        color::Color get_pixel(int32_t x_pos, int32_t y_pos){
             return get_pixel(x_pos, y_pos, 2) << 8 | get_pixel(x_pos, y_pos, 1) << 16 | get_pixel(x_pos, y_pos, 0) << 24 | get_pixel(x_pos, y_pos, 3);
         }
 
@@ -1395,22 +1483,16 @@ namespace sbtmp{
             if(raw_data_size != total_size_in_bytes - offset)
                 raw_data_size = total_size_in_bytes - offset;
 
-            //std::cout << raw_data_size << '\n';
-
             //jump to image data location
             in_image.seekg(offset);
-            //std::cout << 1;
+
             //allocate memory and load the image data
             pixel_data = (uint8_t*)calloc (raw_data_size, sizeof(uint8_t));
-            //std::cout << 1;
             in_image.read((char *)&*pixel_data, raw_data_size);
-            //std::cout << 1;
 
             in_image.close();
-            //std::cout << 1;
 
             initialized = true;
-            //std::cout << 1;
 
             return true;
         }
@@ -1422,8 +1504,10 @@ namespace sbtmp{
             return pixel_data;
         }
 
+
+
         //if std::string is included, the save function can be called with a string instead of a char array
-        #if defined(_GLIBCXX_STRING_) //gnu gcc compiler (linux)
+        #if defined(_GLIBCXX_STRING_) //gnu gcc compiler (Linux)
             bool save(std::string filename){
                 return save(filename.c_str());
             }
@@ -1470,7 +1554,7 @@ namespace sbtmp{
 
         //function used to get the array index of any pixel
         uint64_t get_index(uint32_t x_pos, uint32_t y_pos){
-            return ((btmp_width - y_pos - 1) * btmp_width + x_pos) * 4; //y_pos is inverted because of the way the image is stored
+            return ((btmp_height - y_pos - 1) * btmp_width + x_pos) * 4; //y_pos is inverted because of the way the image is stored
         }
     };
 }
