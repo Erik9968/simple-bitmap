@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.53
+/* very simple bitmap library version exp 0.54
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
@@ -129,8 +129,9 @@
  * - more bug fixes
  * - shapes can now be placed on the image (even outside)
  * - added border drawing function
- * 
- * 
+ *
+ * 0.54 (more changed no one asked for...)
+ * - added steganography encoding and decoding to hide text messages in an image
  * 
  * TODO:
  * - fix coord limits in rect|border and others
@@ -138,8 +139,11 @@
  * - add more filters and resize functions (nearest neighbour | bilinear | bicubic)
  */
 
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <stack>
+#include <stdint.h>
 
 namespace sbtmp{
 
@@ -163,47 +167,47 @@ namespace sbtmp{
         constexpr Color cyan        = 0xffff00ff;
 
 
-        Color set_col(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+        inline Color set_col(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             return (uint32_t)blue << 24 | (uint32_t)green << 16 | (uint32_t)red << 8 | (uint32_t)alpha;
         }
 
-        void set_col(Color &col, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+        inline void set_col(Color &col, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             col = (uint32_t)blue << 24 | (uint32_t)green << 16 | (uint32_t)red << 8 | (uint32_t)alpha;
         }
 
-        void set_red(Color &col, uint8_t red){
+        inline void set_red(Color &col, uint8_t red){
             col |= (uint32_t)red << 8;
         }
 
-        void set_green(Color &col, uint8_t green){
+        inline void set_green(Color &col, uint8_t green){
             col |= (uint32_t)green << 16;
         }
 
-        void set_blue(Color &col, uint8_t blue){
+        inline void set_blue(Color &col, uint8_t blue){
             col |= (uint32_t)blue << 24;
         }
 
-        void set_alpha(Color &col, uint32_t alpha){
+        inline void set_alpha(Color &col, uint32_t alpha){
             col |= (uint32_t)alpha;
         }
 
-        uint8_t get_red(Color col){
+        inline uint8_t get_red(Color col){
             return col >> 8;
         }
 
-        uint8_t get_green(Color col){
+        inline uint8_t get_green(Color col){
             return col >> 16;
         }
 
-        uint8_t get_blue(Color col){
+        inline uint8_t get_blue(Color col){
             return col >> 24;
         }
 
-        uint8_t get_alpha(Color col){
+        inline uint8_t get_alpha(Color col){
             return col;
         }
 
-        Color col_avg(Color col1, Color col2){
+        inline Color col_avg(Color col1, Color col2){
             short red = 0, green = 0, blue = 0, alpha = 0;
             red = (get_red(col1) + get_red(col2)) / 2;
             green = (get_green(col1) + get_green(col2)) / 2;
@@ -317,7 +321,9 @@ namespace sbtmp{
         constexpr Charbtmp tilde = {0x00, 0x00, 0x00, 0x00, 0x08, 0x15, 0x02, 0x00};
 
         //convert any char to the corresponding predefined char-bitmap
-        const char *asciitocbtmp(const char ascii){
+        //this is probably inefficient AF but I don't really care,
+        //so here you have a massive switch case statement to make your eyes bleed
+        inline const char *asciitocbtmp(const char ascii){
             switch(ascii){
                 case 'a': return a; break;
                 case 'b': return b; break;
@@ -1071,6 +1077,103 @@ namespace sbtmp{
             draw_string(x_pos, y_pos, size, str, color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
+        //hide a secret text message inside the image using very simple steganography
+        //the message can only have half as many characters as the image has pixels
+        //because each pixel will contain 4 bits of the string -> 2 pixels = 1 char
+        void encode_str(const char *str){
+            if(!initialized)
+                return;
+            
+            //get string length and include the NULL char
+            uint32_t str_len = std::strlen(str) + 1;
+            uint32_t data_index = 0;
+            
+            //escape condition
+            bool esc_cond = true;
+
+            while(esc_cond){
+
+                uint8_t bit_mask = 0b10000000;
+                bool str_bit;
+
+                //this loop iterates over every bit of a char
+                for(uint8_t i = 0; i < 8 && esc_cond; i++){
+                    //get bit
+                    str_bit = *str & bit_mask;
+
+                    //encode bit
+                    pixel_data[data_index] = ((str_bit) ? (pixel_data[data_index] | 0b00000001) : (pixel_data[data_index] & 0b11111110));
+
+                    //shift mask
+                    bit_mask >>= 1;
+
+                    //increase index
+                    data_index++;
+
+                    //if end of array or end of string is reached, exit all loops by setting the condition to false
+                    if(data_index >= raw_data_size || data_index >= str_len * 8)
+                        esc_cond = false;
+                }
+                //go to the next char in the string
+                str++;
+            }
+        }
+
+        //read a hidden message from the image using steganography
+        //string will automatically be cut of at any NULL character,
+        //but this function can't detect the presence of a hidden message.
+        //This means if there is nothing to decode then it will return garbage data
+        const char *decode_str(){
+            if(!initialized)
+                return nullptr;
+                
+            //calculate and allocate the maximum possible string size
+            //number of pixels / 2 -> 4 subpixels = 4 bits
+            uint32_t str_len = btmp_height * btmp_width / 2;
+            char *str_buffer = (char*)calloc(str_len, sizeof(char));
+
+            //just a buffer pointing to one char of the string buffer
+            char *str_ptr = (char*)str_buffer;
+
+            //we start at index 0
+            uint32_t data_index = 0;
+
+            //escape condition
+            bool esc_cond = true;
+
+            while(esc_cond){
+                //set char to NULL
+                *str_ptr = '\0';
+                
+                //iterate over every bit of a char
+                for(uint8_t i = 0; i < 8 && esc_cond; i++){
+                    //extract char from least significant bit of the pixel data
+                    *str_ptr |= ((0b00000001 & pixel_data[data_index]) << (7 - i));
+                    
+                    //go to next array index
+                    data_index++;
+
+                    //exit the loops if the end of the pixel data array is reached
+                    if(data_index >= raw_data_size)
+                        esc_cond = false;
+                }
+                //if the last extracted char is NULL then end the decoding process
+                if(*str_ptr == '\0'){
+                    //calculate actual stringsize
+                    str_len = str_ptr - str_buffer;
+                    esc_cond = false;
+                }
+                //go to the next char
+                str_ptr++;
+            }
+
+            //reallocate the string buffer so that it isn't larger than it has to be
+            str_buffer = (char*)realloc((void*)str_buffer, str_len);
+
+            //finally return the decoded string
+            return str_buffer;
+        }
+
         //converts the image to black and white in the specified area
         void convert_bw(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2){
             if(x1 > btmp_width || y1 > btmp_height || x2 > btmp_width || y2 > btmp_height || !initialized)
@@ -1544,7 +1647,7 @@ namespace sbtmp{
         const uint32_t alpha_channel_bit_mask = 0xff000000;
         const char color_space[4] = {' ', 'n', 'i', 'W'};
         const uint8_t color_space_endpoints[36] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-        const uint32_t gamma_rgb[3] = {0, 0, 0};
+        const uint32_t gamma_rgb[12] = {0};
 
         //const uint8_t padding = 0;
         //uint8_t padding_size;
