@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.54
+/* very simple bitmap library version exp 0.55
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
@@ -132,8 +132,14 @@
  *
  * 0.54 (more changed no one asked for...)
  * - added steganography encoding and decoding to hide text messages in an image
+ *
+ * 0.55
+ * - renamed triangle function to triangle_border function
+ * - added a real triangle function
  * 
  * TODO:
+ * - improve triangle function (maybe copy from rsbtmp?) (Yes sbtmp exists for Rust. Still WIP and very early though. Has more features than this C++ version though)
+ * - add thickness parameter to triangle_border function
  * - fix coord limits in rect|border and others
  * - add more shapes (rectangle border, round rectangle, round rectangle border)
  * - add more filters and resize functions (nearest neighbour | bilinear | bicubic)
@@ -950,30 +956,100 @@ namespace sbtmp{
             ring(x_pos, y_pos, out_radius, in_radius, color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
-        //draw triangle by connecting three points with lines
+        //draw triangle
         void triangle_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(!initialized)
+                return;
+            int32_t ax = x2 - x1, ay = y2 - y1;
+            ax = (ax < 0) ? -ax : ax;
+            ay = (ay < 0) ? ay : -ay;
+            int32_t dx = ax, sx = x1 < x2 ? 1 : -1;
+            int32_t dy = ay, sy = y1 < y2 ? 1 : -1;
+            int32_t err = dx + dy, e2;
+
+            line_a(x1, y1, x3, y3, red, green, blue, alpha);
+
+            while (true) {
+                if (x1 == x2 && y1 == y2) break;
+                e2 = 2 * err;
+                if (e2 > dy){
+                    err += dy;
+                    x1 += sx;
+                    line_a(x1, y1, x3, y3, red, green, blue, alpha);
+                }
+                if (e2 < dx){
+                    err += dx;
+                    y1 += sy;
+                    line_a(x1, y1, x3, y3, red, green, blue, alpha);
+                }
+            }
+        }
+
+        //draw triangle
+        //no alpha
+        void triangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, uint8_t red, uint8_t green, uint8_t blue){
+            if(!initialized)
+                return;
+            int32_t ax = x2 - x1, ay = y2 - y1;
+            ax = (ax < 0) ? -ax : ax;
+            ay = (ay < 0) ? ay : -ay;
+            int32_t dx = ax, sx = x1 < x2 ? 1 : -1;
+            int32_t dy = ay, sy = y1 < y2 ? 1 : -1;
+            int32_t err = dx + dy, e2;
+
+            line(x1, y1, x3, y3, red, green, blue);
+
+            while (true) {
+                if (x1 == x2 && y1 == y2) break;
+                e2 = 2 * err;
+                if (e2 > dy){
+                    err += dy;
+                    x1 += sx;
+                    line(x1, y1, x3, y3, red, green, blue);
+                }
+                if (e2 < dx){
+                    err += dx;
+                    y1 += sy;
+                    line(x1, y1, x3, y3, red, green, blue);
+                }
+            }
+        }
+
+        //draw triangle
+        void triangle_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color::Color val){
+            triangle_a(x1, y1, x2, y2, x3, y3, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //draw triangle
+        //no alpha
+        void triangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color::Color val){
+            triangle(x1, y1, x2, y2, x3, y3, color::get_red(val), color::get_green(val), color::get_blue(val));
+        }
+
+        //draw triangle border by connecting three points with lines
+        void triangle_border_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             line_a(x1, y1, x2, y2, red, green, blue, alpha);
             line_a(x2, y2, x3, y3, red, green, blue, alpha);
             line_a(x3, y3, x1, y1, red, green, blue, alpha);
         }
 
-        //draw triangle by connecting three points with lines
+        //draw triangle border by connecting three points with lines
         //no alpha
-        void triangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, uint8_t red, uint8_t green, uint8_t blue){
+        void triangle_border(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, uint8_t red, uint8_t green, uint8_t blue){
             line(x1, y1, x2, y2, red, green, blue);
             line(x2, y2, x3, y3, red, green, blue);
             line(x3, y3, x1, y1, red, green, blue);
         }
 
-        //draw triangle by connecting three points with lines
-        void triangle_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color::Color val){
-            triangle_a(x1, y1, x2, y2, x3, y3, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        //draw triangle border by connecting three points with lines
+        void triangle_border_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color::Color val){
+            triangle_border_a(x1, y1, x2, y2, x3, y3, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
-        //draw triangle by connecting three points with lines
+        //draw triangle border by connecting three points with lines
         //no alpha
-        void triangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color::Color val){
-            triangle(x1, y1, x2, y2, x3, y3, color::get_red(val), color::get_green(val), color::get_blue(val));
+        void triangle_border(int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t x3, int32_t y3, color::Color val){
+            triangle_border(x1, y1, x2, y2, x3, y3, color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
         //draws a char from namespace chars
