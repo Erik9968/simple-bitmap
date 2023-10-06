@@ -1,4 +1,4 @@
-/* very simple bitmap library version exp 0.55
+/* very simple bitmap library version exp 0.56
  * by Erik S.
  * 
  * This library is an improved version of my original bitmap library.
@@ -136,12 +136,17 @@
  * 0.55
  * - renamed triangle function to triangle_border function
  * - added a real triangle function
+ *
+ * 0.56
+ * - added ellipse drawing function
+ * - added circle sector drawing function
+ * - added ellipse sector drawing function
  * 
  * TODO:
  * - improve triangle function (maybe copy from rsbtmp?) (Yes sbtmp exists for Rust. Still WIP and very early though. Has more features than this C++ version though)
  * - add thickness parameter to triangle_border function
  * - fix coord limits in rect|border and others
- * - add more shapes (rectangle border, round rectangle, round rectangle border)
+ * - add more shapes (round rectangle, round rectangle border)
  * - add more filters and resize functions (nearest neighbour | bilinear | bicubic)
  */
 
@@ -149,6 +154,8 @@
 #include <cstring>
 #include <fstream>
 #include <stack>
+#include <cstdint>
+#include <cmath>
 #include <stdint.h>
 
 namespace sbtmp{
@@ -908,14 +915,173 @@ namespace sbtmp{
         }
 
         //draws a circle of given size
-        void circle_a(uint32_t x_pos, uint32_t y_pos, int32_t radius, color::Color val){
+        void circle_a(int32_t x_pos, int32_t y_pos, int32_t radius, color::Color val){
             circle_a(x_pos, y_pos, radius, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
         }
 
         //draws a circle of given size
         //no alpha
-        void circle(uint32_t x_pos, uint32_t y_pos, int32_t radius, color::Color val){
+        void circle(int32_t x_pos, int32_t y_pos, int32_t radius, color::Color val){
             circle(x_pos, y_pos, radius, color::get_red(val), color::get_green(val), color::get_blue(val));
+        }
+
+        //draws an ellipse of given size
+        void ellipse_a(int32_t x_pos, int32_t y_pos, int32_t radius, float x_mult, float y_mult, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(radius < 1 || !initialized)
+                return;
+            float x_mult_inv = 1 / x_mult;
+            float y_mult_inv = 1 / y_mult;
+            for(int32_t i = -radius; i < radius * x_mult; i++){
+                for(int32_t j = -radius; j < radius * y_mult; j++){
+                    if(x_mult_inv * i * i + y_mult_inv * j * j <= radius * radius){
+                        set_pixel_a(x_pos + i, y_pos + j, red, green, blue, alpha);
+                    }
+                }
+            }
+        }
+
+        //draws an ellipse of given size
+        //no alpha
+        void ellipse(int32_t x_pos, int32_t y_pos, int32_t radius, float x_mult, float y_mult, uint8_t red, uint8_t green, uint8_t blue){
+            if(radius < 1 || !initialized)
+                return;
+            float x_mult_inv = 1 / x_mult;
+            float y_mult_inv = 1 / y_mult;
+            for(int32_t i = -radius * x_mult; i < radius * x_mult; i++){
+                for(int32_t j = -radius * y_mult; j < radius * y_mult; j++){
+                    if(x_mult_inv * i * i + y_mult_inv * j * j <= radius * radius){
+                        set_pixel(x_pos + i, y_pos + j, red, green, blue);
+                    }
+                }
+            }
+        }
+
+        //draws an ellipse of given size
+        void ellipse_a(int32_t x_pos, int32_t y_pos, int32_t radius, float x_mult, float y_mult, color::Color val){
+            ellipse_a(x_pos, y_pos, radius, x_mult, y_mult, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //draws an ellipse of given size
+        //no alpha
+        void ellipse(int32_t x_pos, int32_t y_pos, int32_t radius, float x_mult, float y_mult, color::Color val){
+            ellipse(x_pos, y_pos, radius, x_mult, y_mult, color::get_red(val), color::get_green(val), color::get_blue(val));
+        }
+
+        //draw a sector of a circle, for example a quarter or an eighth
+        //both angle parameters are in degrees not radians
+        void circle_sector_a(int32_t x_pos, int32_t y_pos, uint32_t radius, float start_angle, float end_angle, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(radius < 1 || !initialized)
+                return;
+            //calculate constant to convert degrees into radians
+            const double pi_over_180 = 3.14159265 / 180.0;
+            set_pixel_a(x_pos, y_pos, red, green, blue, alpha);
+            //iterate over all radii starting from 1 to and including the final radius
+            for(uint32_t radius_iter = 1; radius_iter <= radius; radius_iter++){
+                //calculate the angle difference and the length of the sectors outer diameter
+                double angle_diff = std::abs(start_angle - end_angle);
+                double pixel_arc_len = 3.14159265 * radius_iter * radius_iter * (360.0 / angle_diff);
+                //use that to estimate a rough step size for the angle iterator
+                double angle_step = angle_diff / pixel_arc_len;
+
+                //then iterate over from the starting angle to the end angle
+                //The point is calculated like this: P = (sin(a) * r | cos(a) * r)
+                for(double angle_iter = start_angle; angle_iter <= end_angle; angle_iter += angle_step){
+                    //cos is negated because in the image up means smaller y while in the coordinate system up means larger y
+                    set_pixel_a(std::sin(angle_iter * pi_over_180) * radius_iter + x_pos, -std::cos(angle_iter * pi_over_180) * radius_iter + y_pos, red, green, blue, alpha);
+                }
+            }
+        }
+
+        //draw a sector of a circle, for example a quarter or an eighth
+        //both angle parameters are in degrees not radians
+        //no alpha
+        void circle_sector(int32_t x_pos, int32_t y_pos, uint32_t radius, float start_angle, float end_angle, uint8_t red, uint8_t green, uint8_t blue){
+            if(radius < 1 || !initialized)
+                return;
+            const double pi_over_180 = 3.14159265 / 180.0;
+            set_pixel(x_pos, y_pos, red, green, blue);
+            for(uint32_t radius_iter = 1; radius_iter <= radius; radius_iter++){
+                double angle_diff = std::abs(start_angle - end_angle);
+                double pixel_arc_len = 3.14159265 * radius_iter * radius_iter * (360.0 / angle_diff);
+                double angle_step = angle_diff / pixel_arc_len;
+
+                for(double angle_iter = start_angle; angle_iter <= end_angle; angle_iter += angle_step){
+                    set_pixel(std::sin(angle_iter * pi_over_180) * radius_iter + x_pos, -std::cos(angle_iter * pi_over_180) * radius_iter + y_pos, red, green, blue);
+                }
+            }
+        }
+
+        //draw a sector of a circle, for example a quarter or an eighth
+        //both angle parameters are in degrees not radians
+        void circle_sector_a(int32_t x_pos, int32_t y_pos, uint32_t radius, float start_angle, float end_angle, color::Color val){
+            circle_sector_a(x_pos, y_pos, radius, start_angle, end_angle, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //draw a sector of a circle, for example a quarter or an eighth
+        //both angle parameters are in degrees not radians
+        //no alpha
+        void circle_sector(int32_t x_pos, int32_t y_pos, uint32_t radius, float start_angle, float end_angle, color::Color val){
+            circle_sector(x_pos, y_pos, radius, start_angle, end_angle, color::get_red(val), color::get_green(val), color::get_blue(val));
+        }
+
+        //draw a sector of an ellipse, for example a quarter or an eighth
+        //both angle parameters are in degrees not radians
+        void ellipse_sector_a(int32_t x_pos, int32_t y_pos, uint32_t radius, float start_angle, float end_angle, float x_mult, float y_mult, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(radius < 1 || !initialized)
+                return;
+            //calculate constant to convert degrees into radians
+            const double pi_over_180 = 3.14159265 / 180.0;
+            set_pixel_a(x_pos, y_pos, red, green, blue, alpha);
+            //iterate over all radii starting from 1 to and including the final radius
+            for(uint32_t radius_iter = 1; radius_iter <= radius; radius_iter++){
+                //calculate the angle difference and the length of the sectors outer diameter
+                double angle_diff = std::abs(start_angle - end_angle);
+                double pixel_arc_len = 3.14159265 * radius_iter * radius_iter * (360.0 / angle_diff);
+                //use that to estimate a rough step size for the angle iterator
+                double angle_step = angle_diff / pixel_arc_len;
+
+                //then iterate over from the starting angle to the end angle
+                //The point is calculated like this: P = (sin(a) * r | cos(a) * r)
+                for(double angle_iter = start_angle; angle_iter <= end_angle; angle_iter += angle_step){
+                    //cos is negated because in the image up means smaller y while in the coordinate system up means larger y
+                    set_pixel_a(std::sin(angle_iter * pi_over_180) * radius_iter * x_mult + x_pos, -std::cos(angle_iter * pi_over_180) * radius_iter * y_mult + y_pos, red, green, blue, alpha);
+                }
+            }
+        }
+
+        //draw a sector of an ellipse, for example a quarter or an eighth
+        //both angle parameters are in degrees not radians
+        //no alpha
+        void ellipse_sector(int32_t x_pos, int32_t y_pos, uint32_t radius, float start_angle, float end_angle, float x_mult, float y_mult, uint8_t red, uint8_t green, uint8_t blue){
+            if(radius < 1 || !initialized)
+                return;
+            const double pi_over_180 = 3.14159265 / 180.0;
+            set_pixel(x_pos, y_pos, red, green, blue);
+            //iterate over all radii from 1 to and including the final radius
+            //by stretching the ellipse we simply make the radius larger and squish the circle down
+            for(uint32_t radius_iter = 1; radius_iter <= radius * x_mult * y_mult; radius_iter++){
+                double angle_diff = std::abs(start_angle - end_angle);
+                double pixel_arc_len = 3.14159265 * radius_iter * radius_iter * (360.0 / angle_diff);
+                double angle_step = angle_diff / pixel_arc_len;
+
+                for(double angle_iter = start_angle; angle_iter <= end_angle; angle_iter += angle_step){
+                    //divide the coordinates by the perpendicular coordinate stretch parameter to form the correct shape
+                    set_pixel(std::sin(angle_iter * pi_over_180) * radius_iter / y_mult + x_pos, -std::cos(angle_iter * pi_over_180) * radius_iter / x_mult + y_pos, red, green, blue);
+                }
+            }
+        }
+
+        //draw a sector of an ellipse, for example a quarter or an eighth
+        //both angle parameters are in degrees not radians
+        void ellipse_sector_a(int32_t x_pos, int32_t y_pos, uint32_t radius, float start_angle, float end_angle, float x_mult, float y_mult, color::Color val){
+            ellipse_sector_a(x_pos, y_pos, radius, start_angle, end_angle, x_mult, y_mult, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //draw a sector of an ellipse, for example a quarter or an eighth
+        //both angle parameters are in degrees not radians
+        //no alpha
+        void ellipse_sector(int32_t x_pos, int32_t y_pos, uint32_t radius, float start_angle, float end_angle, float x_mult, float y_mult, color::Color val){
+            ellipse_sector(x_pos, y_pos, radius, start_angle, end_angle, x_mult, y_mult, color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
         //draws a ring of given size
