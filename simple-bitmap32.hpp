@@ -146,12 +146,12 @@
  * - added rounded rectangle drawing function
  * - added rounded border drawing function
  * - fixed ring sector drawing function (removed center pixel)
+ * - crossed the 2000 line mark. Yay
  * 
  * TODO:
  * - improve triangle function (maybe copy from rsbtmp?) (Yes sbtmp exists for Rust. Still WIP and very early though. Has more features than this C++ version though)
  * - add thickness parameter to triangle_border function
  * - fix coord limits in rect|border and others
- * - add more shapes (round rectangle, round rectangle border)
  * - add more filters and resize functions (nearest neighbour | bilinear | bicubic)
  */
 
