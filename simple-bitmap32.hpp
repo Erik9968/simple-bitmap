@@ -141,6 +141,11 @@
  * - added ellipse drawing function
  * - added circle sector drawing function
  * - added ellipse sector drawing function
+ *
+ * 0.57
+ * - added rounded rectangle drawing function
+ * - added rounded border drawing function
+ * - fixed ring sector drawing function (removed center pixel)
  * 
  * TODO:
  * - improve triangle function (maybe copy from rsbtmp?) (Yes sbtmp exists for Rust. Still WIP and very early though. Has more features than this C++ version though)
@@ -788,8 +793,8 @@ namespace sbtmp{
         void rectangle_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
             if(x1 > x2 || y1 > y2 || !initialized)
                 return;
-            for(uint32_t i = x1; i <= x2; i++){
-                for(uint32_t j = y1; j <= y2; j++){
+            for(uint32_t i = x1; i < x2; i++){
+                for(uint32_t j = y1; j < y2; j++){
                     set_pixel_a(i, j, red, green, blue, alpha);
                 }
             }
@@ -800,8 +805,8 @@ namespace sbtmp{
         void rectangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint8_t red, uint8_t green, uint8_t blue){
             if(x1 > x2 || y1 > y2 || !initialized)
                 return;
-            for(uint32_t i = x1; i <= x2; i++){
-                for(uint32_t j = y1; j <= y2; j++){
+            for(uint32_t i = x1; i < x2; i++){
+                for(uint32_t j = y1; j < y2; j++){
                     set_pixel(i, j, red, green, blue);
                 }
             }
@@ -885,6 +890,80 @@ namespace sbtmp{
         //no alpha
         void border(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint16_t thickness, color::Color val){
             border(x1, y1, x2, y2, thickness, color::get_red(val), color::get_green(val), color::get_blue(val));
+        }
+
+        //draws a rounded rectangle of given size
+        void round_rectangle_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t radius, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(x1 > x2 || y1 > y2 || !initialized)
+                return;
+            uint32_t max_radius = std::min(std::abs(x1 - x2), std::abs(y1 - y2) / 2);
+            if(radius > max_radius)
+                radius = max_radius;
+
+            //draw the four corners fist
+            circle_sector_a(x1 + radius, y1 + radius, radius, 270, 360, red, green, blue, alpha);
+            circle_sector_a(x2 - radius, y1 + radius, radius, 0, 90, red, green, blue, alpha);
+            circle_sector_a(x1 + radius, y2 - radius, radius, 180, 270, red, green, blue, alpha);
+            circle_sector_a(x2 - radius, y2 - radius, radius, 90, 180, red, green, blue, alpha);
+
+            //then fill the rest
+            rectangle_a(x1, y1 + radius, x2, y2 - radius, red, green, blue, alpha);
+            rectangle_a(x1 + radius, y1, x2 - radius, y1 + radius, red, green, blue, alpha);
+            rectangle_a(x1 + radius, y2 - radius, x2 - radius, y2, red, green, blue, alpha);
+        }
+
+        //draws a rounded rectangle of given size
+        //no alpha
+        void round_rectangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t radius, uint8_t red, uint8_t green, uint8_t blue){
+            if(x1 > x2 || y1 > y2 || !initialized)
+                return;
+            uint32_t max_radius = std::min(std::abs(x1 - x2), std::abs(y1 - y2) / 2);
+            if(radius > max_radius)
+                radius = max_radius;
+
+            //draw the four corners fist
+            circle_sector(x1 + radius, y1 + radius, radius, 270, 360, red, green, blue);
+            circle_sector(x2 - radius, y1 + radius, radius, 0, 90, red, green, blue);
+            circle_sector(x1 + radius, y2 - radius, radius, 180, 270, red, green, blue);
+            circle_sector(x2 - radius, y2 - radius, radius, 90, 180, red, green, blue);
+
+            //then fill the rest
+            rectangle(x1, y1 + radius, x2, y2 - radius, red, green, blue);
+            rectangle(x1 + radius, y1, x2 - radius, y1 + radius, red, green, blue);
+            rectangle(x1 + radius, y2 - radius, x2 - radius, y2, red, green, blue);
+        }
+
+        //draws a rounded rectangle of given size
+        void round_rectangle_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t radius, color::Color val){
+            round_rectangle_a(x1, y1, x2, y2, radius, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //draws a rounded rectangle of given size
+        //no alpha
+        void round_rectangle(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t radius, color::Color val){
+            round_rectangle(x1, y1, x2, y2, radius, color::get_red(val), color::get_green(val), color::get_blue(val));
+        }
+
+        //draws a rounded border of given size
+        void round_border_a(int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint16_t thickness ,uint32_t radius, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(x1 > x2 || y1 > y2 || !initialized)
+                return;
+            uint32_t max_radius = std::min(std::abs(x1 - x2), std::abs(y1 - y2) / 2);
+            if(radius > max_radius)
+                radius = max_radius;
+            uint16_t max_thickness = max_radius;
+
+            //draw the four corners fist
+            ring_sector_a(x1 + radius, y1 + radius, radius, radius - thickness, 270, 360, red, green, blue, alpha);
+            ring_sector_a(x2 - radius, y1 + radius, radius, radius - thickness, 0, 90, red, green, blue, alpha);
+            ring_sector_a(x1 + radius, y2 - radius, radius, radius - thickness, 180, 270, red, green, blue, alpha);
+            ring_sector_a(x2 - radius, y2 - radius, radius, radius - thickness, 90, 180, red, green, blue, alpha);
+
+            //then fill the rest
+            rectangle_a(x1, y1 + radius, x1 + thickness, y2 - radius, red, green, blue, alpha);
+            rectangle_a(x2 - thickness, y1 + radius, x2, y2 - radius, red, green, blue, alpha);
+            rectangle_a(x1 + radius, y1, x2 - radius, y1 + thickness, red, green, blue, alpha);
+            rectangle_a(x1 + radius, y2 - thickness, x2 - radius, y2, red, green, blue, alpha);
         }
 
         //draws a circle of given size
@@ -1120,6 +1199,67 @@ namespace sbtmp{
         //no alpha
         void ring(int32_t x_pos, int32_t y_pos, int32_t out_radius, int32_t in_radius, color::Color val){
             ring(x_pos, y_pos, out_radius, in_radius, color::get_red(val), color::get_green(val), color::get_blue(val));
+        }
+
+        //draw a sector of a ring, for example a quarter or an eighth
+        //both angle parameters are in degrees not radians
+        void ring_sector_a(int32_t x_pos, int32_t y_pos, uint32_t out_radius, uint32_t in_radius, float start_angle, float end_angle, uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha){
+            if(in_radius < 1 || out_radius <= in_radius || !initialized)
+                return;
+            //calculate constant to convert degrees into radians
+            const double pi_over_180 = 3.14159265 / 180.0;
+            //iterate over all radii starting from 1 to and including the final radius
+            for(uint32_t radius_iter = in_radius; radius_iter <= out_radius; radius_iter++){
+                //calculate the angle difference and the length of the sectors outer diameter
+                double angle_diff = std::abs(start_angle - end_angle);
+                double pixel_arc_len = 3.14159265 * radius_iter * radius_iter * (360.0 / angle_diff);
+                //use that to estimate a rough step size for the angle iterator
+                double angle_step = angle_diff / pixel_arc_len;
+
+                //then iterate over from the starting angle to the end angle
+                //The point is calculated like this: P = (sin(a) * r | cos(a) * r)
+                for(double angle_iter = start_angle; angle_iter <= end_angle; angle_iter += angle_step){
+                    //cos is negated because in the image up means smaller y while in the coordinate system up means larger y
+                    set_pixel_a(std::sin(angle_iter * pi_over_180) * radius_iter + x_pos, -std::cos(angle_iter * pi_over_180) * radius_iter + y_pos, red, green, blue, alpha);
+                }
+            }
+        }
+
+        //draw a sector of a ring, for example a quarter or an eighth
+        //both angle parameters are in degrees not radians
+        //no alpha
+        void ring_sector(int32_t x_pos, int32_t y_pos, uint32_t out_radius, uint32_t in_radius, float start_angle, float end_angle, uint8_t red, uint8_t green, uint8_t blue){
+            if(in_radius < 1 || out_radius <= in_radius || !initialized)
+                return;
+            //calculate constant to convert degrees into radians
+            const double pi_over_180 = 3.14159265 / 180.0;
+            //iterate over all radii starting from 1 to and including the final radius
+            for(uint32_t radius_iter = in_radius; radius_iter <= out_radius; radius_iter++){
+                //calculate the angle difference and the length of the sectors outer diameter
+                double angle_diff = std::abs(start_angle - end_angle);
+                double pixel_arc_len = 3.14159265 * radius_iter * radius_iter * (360.0 / angle_diff);
+                //use that to estimate a rough step size for the angle iterator
+                double angle_step = angle_diff / pixel_arc_len;
+
+                //then iterate over from the starting angle to the end angle
+                //The point is calculated like this: P = (sin(a) * r | cos(a) * r)
+                for(double angle_iter = start_angle; angle_iter <= end_angle; angle_iter += angle_step){
+                    //cos is negated because in the image up means smaller y while in the coordinate system up means larger y
+                    set_pixel(std::sin(angle_iter * pi_over_180) * radius_iter + x_pos, -std::cos(angle_iter * pi_over_180) * radius_iter + y_pos, red, green, blue);
+                }
+            }
+        }
+
+        //draw a sector of a ring, for example a quarter or an eighth
+        //both angle parameters are in degrees not radians
+        void ring_sector_a(int32_t x_pos, int32_t y_pos, uint32_t out_radius, uint32_t in_radius, float start_angle, float end_angle, color::Color val){
+            ring_sector_a(x_pos, y_pos, out_radius, in_radius, start_angle, end_angle, color::get_red(val), color::get_green(val), color::get_blue(val), color::get_alpha(val));
+        }
+
+        //draw a sector of a ring, for example a quarter or an eighth
+        //both angle parameters are in degrees not radians
+        void ring_sector(int32_t x_pos, int32_t y_pos, uint32_t out_radius, uint32_t in_radius, float start_angle, float end_angle, color::Color val){
+            ring_sector(x_pos, y_pos, out_radius, in_radius, start_angle, end_angle, color::get_red(val), color::get_green(val), color::get_blue(val));
         }
 
         //draw triangle
