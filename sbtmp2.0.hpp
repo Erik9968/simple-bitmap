@@ -1,5 +1,5 @@
 /*
- *  Simple Bitmap 2.0 by Erik S. ver exp. 0.62
+ *  Simple Bitmap 2.0 by Erik S. ver exp. 0.63
  *  (2.0 is part of the name and doesn't refer to the actual product version)
  *  
  *  A library designed to be as simple as possible while providing enough functionality to be useful
@@ -53,6 +53,9 @@
  *  
  *  -0.62
  *      -fixed bug in Bitmap24 save function
+ *  
+ *  -0.63
+ *      -fixed bug in the round_rectangle function (if radius was to small, the corners would not be drawn -> added min radius)
  *  
  */
 
@@ -1249,6 +1252,9 @@ namespace sbtmp {
             if(!img.is_initialized() || x1 > x2 || y1 > y2)
                 return;
             uint32_t max_radius = std::min(std::abs(x1 - x2), std::abs(y1 - y2) / 2);
+            uint32_t min_radius = thickness + 1;
+            if(radius < min_radius)
+                radius = min_radius;
             if(radius > max_radius)
                 radius = max_radius;
 
